@@ -91,9 +91,45 @@ services:
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT_INTERNAL
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
 
+  # MongoDB for Child Protection Service
+  mongodb:
+    image: mongo:6-jammy
+    container_name: rakshak_mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+
+  # Child Protection Backend (Node.js)
+  child_protection:
+    build:
+      context: ./services/child_protection
+    container_name: rakshak_child_protection
+    depends_on:
+      - mongodb
+    environment:
+      MONGO_URI: "mongodb://mongodb:27017/child_recovery"
+      PORT: 5000
+    ports:
+      - "5000:5000"
+
+  # Community Watch Backend (Node.js)
+  community_watch:
+    build:
+      context: ./services/community_watch
+    container_name: rakshak_community_watch
+    depends_on:
+      - mongodb
+    environment:
+      MONGO_URI: "mongodb://mongodb:27017/community_watch"
+      PORT: 5001
+    ports:
+      - "5001:5001"
+
 volumes:
   postgres_data:
   neo4j_data:
   es_data:
   redis_data:
   minio_data:
+  mongodb_data:
