@@ -126,6 +126,19 @@ services:
     ports:
       - "5001:5001"
 
+  # National Command Backend (Node.js)
+  national_command:
+    build:
+      context: ./services/national_command
+    container_name: rakshak_national_command
+    depends_on:
+      - mongodb
+    environment:
+      MONGO_URI: "mongodb://mongodb:27017/national_command"
+      PORT: 5002
+    ports:
+      - "5002:5002"
+
 volumes:
   postgres_data:
   neo4j_data:
