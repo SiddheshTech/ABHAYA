@@ -139,6 +139,45 @@ services:
     ports:
       - "5002:5002"
 
+  # Investigation War Room (Node.js)
+  investigation_war_room:
+    build:
+      context: ./services/investigation_war_room
+    container_name: rakshak_investigation_war_room
+    depends_on:
+      - mongodb
+    environment:
+      MONGO_URI: "mongodb://mongodb:27017/investigation_war_room"
+      PORT: 5003
+    ports:
+      - "5003:5003"
+
+  # AI Forensic Lab (Node.js)
+  ai_forensic_lab:
+    build:
+      context: ./services/ai_forensic_lab
+    container_name: rakshak_ai_forensic_lab
+    depends_on:
+      - mongodb
+    environment:
+      MONGO_URI: "mongodb://mongodb:27017/ai_forensic_lab"
+      PORT: 5004
+    ports:
+      - "5004:5004"
+
+  # Mission Control (Node.js)
+  mission_control:
+    build:
+      context: ./services/mission_control
+    container_name: rakshak_mission_control
+    depends_on:
+      - mongodb
+    environment:
+      MONGO_URI: "mongodb://mongodb:27017/mission_control"
+      PORT: 5005
+    ports:
+      - "5005:5005"
+
 volumes:
   postgres_data:
   neo4j_data:
