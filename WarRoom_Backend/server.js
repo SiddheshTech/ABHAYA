@@ -40,6 +40,7 @@ const evidenceRoutes = require('./routes/evidence');
 const leadRoutes = require('./routes/leads');
 const operationRoutes = require('./routes/operations');
 const threatRoutes = require('./routes/threats');
+const forensicRoutes = require('./routes/forensics');
 
 // Use Routes
 app.use('/api/v1/cases', caseRoutes);
@@ -47,6 +48,7 @@ app.use('/api/v1/evidence', evidenceRoutes);
 app.use('/api/v1/leads', leadRoutes);
 app.use('/api/v1/operations', operationRoutes);
 app.use('/api/v1/intelligence', threatRoutes);
+app.use('/api/v1/forensics', forensicRoutes);
 
 const PORT = process.env.PORT || 5000;
 
