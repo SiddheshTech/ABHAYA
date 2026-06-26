@@ -1,8 +1,28 @@
+# Refresh PATH to pick up newly installed Docker Desktop if the terminal session is old
+$env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "  Rakshak Server - Sequential Build    " -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
+
+# Verify docker command is available
+if (!(Get-Command docker -ErrorAction SilentlyContinue)) {
+    Write-Host "ERROR: The 'docker' command was not found in your PATH." -ForegroundColor Red
+    Write-Host "Please ensure Docker Desktop is installed and then restart your terminal." -ForegroundColor Yellow
+    exit 1
+}
+
+# Verify docker daemon is running
+& docker ps 2>&1 | Out-Null
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "ERROR: The Docker service is not running." -ForegroundColor Red
+    Write-Host "Please open Docker Desktop and wait until the 'Engine Running' status appears." -ForegroundColor Yellow
+    Write-Host "Note: If you just installed Docker, you may need to install WSL 2 (run 'wsl --install' in admin PowerShell) and restart your PC." -ForegroundColor Cyan
+    exit 1
+}
+
 
 function Build-Service {
     param($svc)
