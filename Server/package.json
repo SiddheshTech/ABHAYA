@@ -1,0 +1,17 @@
+{
+  "name": "rakshak-server",
+  "version": "1.0.0",
+  "description": "Rakshak microservices backend - Docker Compose orchestration",
+  "scripts": {
+    "dev": "docker compose up --build",
+    "start": "docker compose up -d",
+    "build": "docker compose build",
+    "stop": "docker compose down",
+    "logs": "docker compose logs -f",
+    "status": "docker compose ps",
+    "clean": "docker compose down -v --rmi local"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

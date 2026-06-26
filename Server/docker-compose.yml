@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # PostgreSQL with PostGIS for Spatial data and core API metadata
   postgres:
@@ -43,6 +41,11 @@ services:
       - "9200:9200"
     volumes:
       - es_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:9200/_cluster/health || exit 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 10
 
   # Redis for Background jobs and Caching
   redis:
@@ -91,7 +94,7 @@ services:
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT_INTERNAL
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
 
-  # MongoDB for Child Protection Service
+  # MongoDB for Node.js microservices
   mongodb:
     image: mongo:6-jammy
     container_name: rakshak_mongodb
@@ -99,6 +102,15 @@ services:
       - "27017:27017"
     volumes:
       - mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ──────────────────────────────────────────────
+  # Node.js Microservices
+  # ──────────────────────────────────────────────
 
   # Child Protection Backend (Node.js)
   child_protection:
@@ -106,12 +118,14 @@ services:
       context: ./services/child_protection
     container_name: rakshak_child_protection
     depends_on:
-      - mongodb
+      mongodb:
+        condition: service_healthy
     environment:
       MONGO_URI: "mongodb://mongodb:27017/child_recovery"
       PORT: 5000
     ports:
       - "5000:5000"
+    restart: unless-stopped
 
   # Community Watch Backend (Node.js)
   community_watch:
@@ -119,12 +133,14 @@ services:
       context: ./services/community_watch
     container_name: rakshak_community_watch
     depends_on:
-      - mongodb
+      mongodb:
+        condition: service_healthy
     environment:
       MONGO_URI: "mongodb://mongodb:27017/community_watch"
       PORT: 5001
     ports:
       - "5001:5001"
+    restart: unless-stopped
 
   # National Command Backend (Node.js)
   national_command:
@@ -132,25 +148,29 @@ services:
       context: ./services/national_command
     container_name: rakshak_national_command
     depends_on:
-      - mongodb
+      mongodb:
+        condition: service_healthy
     environment:
       MONGO_URI: "mongodb://mongodb:27017/national_command"
       PORT: 5002
     ports:
       - "5002:5002"
+    restart: unless-stopped
 
-  # Investigation War Room (Node.js)
+  # Investigation War Room (Node.js + Socket.IO)
   investigation_war_room:
     build:
       context: ./services/investigation_war_room
     container_name: rakshak_investigation_war_room
     depends_on:
-      - mongodb
+      mongodb:
+        condition: service_healthy
     environment:
       MONGO_URI: "mongodb://mongodb:27017/investigation_war_room"
       PORT: 5003
     ports:
       - "5003:5003"
+    restart: unless-stopped
 
   # AI Forensic Lab (Node.js)
   ai_forensic_lab:
@@ -158,12 +178,14 @@ services:
       context: ./services/ai_forensic_lab
     container_name: rakshak_ai_forensic_lab
     depends_on:
-      - mongodb
+      mongodb:
+        condition: service_healthy
     environment:
       MONGO_URI: "mongodb://mongodb:27017/ai_forensic_lab"
       PORT: 5004
     ports:
       - "5004:5004"
+    restart: unless-stopped
 
   # Mission Control (Node.js)
   mission_control:
@@ -171,12 +193,97 @@ services:
       context: ./services/mission_control
     container_name: rakshak_mission_control
     depends_on:
-      - mongodb
+      mongodb:
+        condition: service_healthy
     environment:
       MONGO_URI: "mongodb://mongodb:27017/mission_control"
       PORT: 5005
     ports:
       - "5005:5005"
+    restart: unless-stopped
+
+  # ──────────────────────────────────────────────
+  # Python FastAPI Microservices
+  # ──────────────────────────────────────────────
+
+  # Core API (FastAPI) — FIR management, auth, PostgreSQL
+  core_api:
+    build:
+      context: .
+      dockerfile: ./services/core_api/Dockerfile
+    container_name: rakshak_core_api
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      POSTGRES_URL: "postgresql+asyncpg://rakshak_user:rakshak_password@postgres:5432/rakshak_db"
+      SECRET_KEY: "rakshak-super-secret-key-change-in-production"
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+  # Ghost Engine (FastAPI) — Identity reconstruction engine
+  ghost_engine:
+    build:
+      context: .
+      dockerfile: ./services/ghost_engine/Dockerfile
+    container_name: rakshak_ghost_engine
+    depends_on:
+      - core_api
+    environment:
+      SECRET_KEY: "rakshak-super-secret-key-change-in-production"
+    ports:
+      - "8001:8001"
+    restart: unless-stopped
+
+  # Migration Sensor (FastAPI) — Displacement early warning
+  migration_sensor:
+    build:
+      context: .
+      dockerfile: ./services/migration_sensor/Dockerfile
+    container_name: rakshak_migration_sensor
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    environment:
+      ES_HOST: "http://elasticsearch:9200"
+      SECRET_KEY: "rakshak-super-secret-key-change-in-production"
+    ports:
+      - "8002:8002"
+    restart: unless-stopped
+
+  # Network Genome (FastAPI) — Trafficking network graph analysis
+  network_genome:
+    build:
+      context: .
+      dockerfile: ./services/network_genome/Dockerfile
+    container_name: rakshak_network_genome
+    depends_on:
+      - neo4j
+    environment:
+      NEO4J_URI: "bolt://neo4j:7687"
+      NEO4J_USER: "neo4j"
+      NEO4J_PASSWORD: "rakshak_graph_pass"
+      SECRET_KEY: "rakshak-super-secret-key-change-in-production"
+    ports:
+      - "8003:8003"
+    restart: unless-stopped
+
+  # Psychology Search (FastAPI) — Perpetrator profiling & cognitive maps
+  psychology_search:
+    build:
+      context: .
+      dockerfile: ./services/psychology_search/Dockerfile
+    container_name: rakshak_psychology_search
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      POSTGRES_URL: "postgresql+asyncpg://rakshak_user:rakshak_password@postgres:5432/rakshak_db"
+      SECRET_KEY: "rakshak-super-secret-key-change-in-production"
+    ports:
+      - "8004:8004"
+    restart: unless-stopped
 
 volumes:
   postgres_data:

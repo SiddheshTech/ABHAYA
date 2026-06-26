@@ -1,0 +1,8 @@
+{
+  "name": "Remix: Remix: Remix: Remix: Remix: Remix: ABHAYA",
+  "description": "A highly detailed, responsive, and functional interactive clone of the Government of India\u0027s Mission Vatsalya Portal, complete with stakeholder panels, tracking dashboards, grievance registries, and guidelines.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
