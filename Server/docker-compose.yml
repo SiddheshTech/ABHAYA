@@ -112,6 +112,22 @@ services:
   # Node.js Microservices
   # ──────────────────────────────────────────────
 
+  # Auth Service
+  auth_service:
+    build:
+      context: ./services/auth_service
+    container_name: rakshak_auth_service
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    environment:
+      MONGO_URI: "mongodb://mongodb:27017/abhaya_auth"
+      PORT: 5010
+      JWT_SECRET: "abhaya_super_secret_jwt_key_2026_prod"
+    ports:
+      - "5010:5010"
+    restart: unless-stopped
+
   # Child Protection Backend (Node.js)
   child_protection:
     build:

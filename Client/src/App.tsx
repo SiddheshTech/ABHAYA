@@ -27,6 +27,7 @@ import { PortalActiveTab, PapsSubPage, GuidelinesSubPage, GrievanceSubPage } fro
 import { Calendar, HelpCircle, Phone, Info, ShieldCheck, Heart, Facebook, Instagram, Twitter, Linkedin, Youtube, MessageSquare } from "lucide-react";
 import { useApiStore } from "./lib/apiStore";
 import { useToastStore } from "./lib/store";
+import { useAuthStore } from "./lib/authStore";
 
 // Import the generated foster family banner image
 import fosterFamilyBanner from "./assets/images/foster_family_banner_1782108634548.jpg";
@@ -34,11 +35,13 @@ import fosterFamilyBanner from "./assets/images/foster_family_banner_17821086345
 export default function App() {
   const { fetchInitialData, initSocket } = useApiStore();
   const { addToast } = useToastStore();
+  const { user, isAuthenticated, checkAuth } = useAuthStore();
 
   useEffect(() => {
     fetchInitialData();
     initSocket();
-  }, [fetchInitialData, initSocket]);
+    checkAuth();
+  }, [fetchInitialData, initSocket, checkAuth]);
 
   // Global States
   const [lang, setLang] = useState<Language>("en");
@@ -53,6 +56,20 @@ export default function App() {
   const [aiflDashboardOpen, setAiflDashboardOpen] = useState(false);
   const [missionControlDashboardOpen, setMissionControlDashboardOpen] = useState(false);
   const [systemDashboardRole, setSystemDashboardRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      if (user.role === "IWR") setIwrDashboardOpen(true);
+      else if (user.role === "AIFL") setAiflDashboardOpen(true);
+      else if (user.role === "MC") setMissionControlDashboardOpen(true);
+      else if (["CRC", "CW", "ROS"].includes(user.role)) setSystemDashboardRole(user.role);
+    } else {
+      setIwrDashboardOpen(false);
+      setAiflDashboardOpen(false);
+      setMissionControlDashboardOpen(false);
+      setSystemDashboardRole(null);
+    }
+  }, [isAuthenticated, user]);
 
   // Dynamic class adjustments based on text sizes
   const appFontClass = textSize === "large" ? "text-lg" : textSize === "extra-large" ? "text-xl" : "text-sm";

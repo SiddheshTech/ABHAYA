@@ -34,7 +34,7 @@ Write-Host "  OK: python-base" -ForegroundColor Green
 # Step 1: Build Node.js services (fast, uses cache)
 Write-Host ""
 Write-Host "[1/4] Building Node.js microservices..." -ForegroundColor Yellow
-foreach ($svc in @("child_protection", "community_watch", "national_command", "investigation_war_room", "ai_forensic_lab", "mission_control")) {
+foreach ($svc in @("auth_service", "child_protection", "community_watch", "national_command", "investigation_war_room", "ai_forensic_lab", "mission_control")) {
     Build-Service $svc
 }
 

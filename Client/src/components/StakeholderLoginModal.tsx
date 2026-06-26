@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { translations, Language } from "../data/translations";
-import { X, ShieldCheck, CheckCircle, RefreshCw, Layers, Award, FileText, UserCheck, Eye, AlertTriangle } from "lucide-react";
+import { X, ShieldCheck, CheckCircle, RefreshCw, Layers, Award, FileText, UserCheck, Eye, AlertTriangle, UserPlus, LogIn } from "lucide-react";
+import { useAuthStore } from "../lib/authStore";
 
 interface StakeholderLoginModalProps {
   lang: Language;
@@ -24,12 +25,28 @@ export default function StakeholderLoginModal({
   onSystemLogin
 }: StakeholderLoginModalProps) {
   const t = translations[lang];
+  const { user, isAuthenticated, setAuth, logout } = useAuthStore();
+
+  // Auto-route if already authenticated
+  useEffect(() => {
+    if (isOpen && isAuthenticated && user) {
+      const userRole = user.role;
+      if (userRole === "IWR" && onIWRLogin) onIWRLogin();
+      else if (userRole === "AIFL" && onAIFLLogin) onAIFLLogin();
+      else if (userRole === "MC" && onMCLogin) onMCLogin();
+      else if (["CRC", "CW", "ROS"].includes(userRole) && onSystemLogin) onSystemLogin(userRole);
+    }
+  }, [isOpen, isAuthenticated, user, onIWRLogin, onAIFLLogin, onMCLogin, onSystemLogin]);
 
   // Login credentials states
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [role, setRole] = useState("IWR");
   const [district, setDistrict] = useState("Pune, Maharashtra");
-  const [password, setPassword] = useState("••••••••");
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
 
   // Mock Stakeholder Database for foster care applications
   const [applications, setApplications] = useState([
@@ -41,18 +58,42 @@ export default function StakeholderLoginModal({
 
   if (!isOpen) return null;
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (role === "IWR" && onIWRLogin) {
-      onIWRLogin();
-    } else if (role === "AIFL" && onAIFLLogin) {
-      onAIFLLogin();
-    } else if (role === "MC" && onMCLogin) {
-      onMCLogin();
-    } else if (["CRC", "CW", "ROS"].includes(role) && onSystemLogin) {
-      onSystemLogin(role);
-    } else {
-      setIsLoggedIn(true);
+    setLoading(true);
+    setErrorMsg("");
+    
+    try {
+      const endpoint = isSignUp ? '/register' : '/login';
+      const body = isSignUp 
+        ? { name, email, password, role }
+        : { email, password };
+
+      const res = await fetch(`${import.meta.env.VITE_AUTH_API_URL}${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      
+      const data = await res.json();
+      
+      if (!res.ok) {
+        throw new Error(data.error || 'Authentication failed');
+      }
+
+      setAuth(data.user, data.token);
+
+      // Trigger the role-specific dashboard if applicable
+      const userRole = data.user.role;
+      if (userRole === "IWR" && onIWRLogin) onIWRLogin();
+      else if (userRole === "AIFL" && onAIFLLogin) onAIFLLogin();
+      else if (userRole === "MC" && onMCLogin) onMCLogin();
+      else if (["CRC", "CW", "ROS"].includes(userRole) && onSystemLogin) onSystemLogin(userRole);
+      
+    } catch (err: any) {
+      setErrorMsg(err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -63,7 +104,7 @@ export default function StakeholderLoginModal({
   };
 
   const handleLogout = () => {
-    setIsLoggedIn(false);
+    logout();
   };
 
   return (
@@ -94,10 +135,10 @@ export default function StakeholderLoginModal({
 
         {/* Content body */}
         <div className="p-6">
-          {!isLoggedIn ? (
+          {!isAuthenticated ? (
             
-            /* 1. Login Form Screen */
-            <form onSubmit={handleLogin} className="max-w-md mx-auto space-y-4">
+            /* 1. Login/Signup Form Screen */
+            <form onSubmit={handleAuth} className="max-w-md mx-auto space-y-4">
               <div className="text-center mb-6">
                 <h3 className="text-xl font-bold text-gray-900">
                   {lang === "en" ? "Official Authentication gateway" : "आधिकारिक प्रमाणीकरण प्रवेश द्वार"}
@@ -107,7 +148,56 @@ export default function StakeholderLoginModal({
                 </p>
               </div>
 
-              {/* Role selection */}
+              {/* Toggle Sign In / Sign Up */}
+              <div className="flex bg-gray-100 p-1 rounded-lg">
+                <button
+                  type="button"
+                  onClick={() => setIsSignUp(false)}
+                  className={`flex-1 py-2 text-sm font-bold rounded-md transition-colors ${!isSignUp ? 'bg-white shadow-xs text-amber-600' : 'text-gray-500'}`}
+                >
+                  <LogIn className="w-4 h-4 inline-block mr-1" /> Sign In
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsSignUp(true)}
+                  className={`flex-1 py-2 text-sm font-bold rounded-md transition-colors ${isSignUp ? 'bg-white shadow-xs text-amber-600' : 'text-gray-500'}`}
+                >
+                  <UserPlus className="w-4 h-4 inline-block mr-1" /> Sign Up
+                </button>
+              </div>
+
+              {errorMsg && (
+                <div className="p-3 bg-red-50 text-red-600 text-xs font-bold rounded-lg flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4" /> {errorMsg}
+                </div>
+              )}
+
+              {isSignUp && (
+                <div>
+                  <label className="block text-xs font-bold text-gray-400 uppercase mb-1">FULL NAME</label>
+                  <input 
+                    type="text" 
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    required={isSignUp} 
+                    placeholder="e.g. Officer Raj"
+                    className="w-full p-2.5 text-sm bg-white dark:bg-stone-900 border rounded-lg"
+                  />
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-bold text-gray-400 uppercase mb-1">EMAIL ADDRESS</label>
+                <input 
+                  type="email" 
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required 
+                  placeholder="e.g. admin@abhaya.gov"
+                  className="w-full p-2.5 text-sm bg-white dark:bg-stone-900 border rounded-lg"
+                />
+              </div>
+
               <div>
                 <label className="block text-xs font-bold text-gray-400 uppercase mb-1">SELECT SECURITY LEVEL / ROLE</label>
                 <select 
@@ -124,19 +214,6 @@ export default function StakeholderLoginModal({
                 </select>
               </div>
 
-              {/* District locator */}
-              <div>
-                <label className="block text-xs font-bold text-gray-400 uppercase mb-1">DISTRICT & STATE LOCATION</label>
-                <input 
-                  type="text" 
-                  value={district}
-                  onChange={(e) => setDistrict(e.target.value)}
-                  required 
-                  placeholder="e.g. Pune, Maharashtra"
-                  className="w-full p-2.5 text-sm bg-white dark:bg-stone-900 border rounded-lg"
-                />
-              </div>
-
               {/* Passcode input */}
               <div>
                 <label className="block text-xs font-bold text-gray-400 uppercase mb-1">SEC_ACCESS_TOKEN / CODE</label>
@@ -149,16 +226,13 @@ export default function StakeholderLoginModal({
                 />
               </div>
 
-              <div className="p-3 bg-amber-50 rounded-lg text-[11px] text-amber-900 border border-amber-100">
-                ⭐ Test credentials: Use any passcode! No real credentials required during active draft mock testing.
-              </div>
-
               <button 
                 type="submit"
-                className="w-full py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-lg transition-all text-sm uppercase shadow-md flex items-center justify-center gap-1.5"
+                disabled={loading}
+                className="w-full py-2.5 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white font-bold rounded-lg transition-all text-sm uppercase shadow-md flex items-center justify-center gap-1.5"
               >
                 <ShieldCheck className="w-4 h-4" />
-                <span>Verify & Enter Gateway</span>
+                <span>{loading ? 'Processing...' : isSignUp ? 'Register Account' : 'Verify & Enter Gateway'}</span>
               </button>
             </form>
           ) : (
@@ -173,7 +247,7 @@ export default function StakeholderLoginModal({
                     <UserCheck className="w-5 h-5" />
                   </span>
                   <div>
-                    <h4 className="font-extrabold text-[#9e27b0]">ACCESS PROFILE ID: {role}-83912</h4>
+                    <h4 className="font-extrabold text-[#9e27b0]">ACCESS PROFILE ID: {user?.role}-83912 ({user?.name})</h4>
                     <p className="text-gray-400 mt-0.5 font-mono">{district} ● Active Session</p>
                   </div>
                 </div>
@@ -284,7 +358,7 @@ export default function StakeholderLoginModal({
         </div>
 
         {/* Footer controls */}
-        {!(isLoggedIn && role === "IWR") && (
+        {!(isAuthenticated && role === "IWR") && (
           <div className={`p-4 border-t flex justify-end gap-3 ${
             highContrast ? "border-yellow-300 bg-stone-900" : "bg-gray-50 border-gray-150"
           }`}>

@@ -1,4 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 import { useOverlayStore } from "../lib/overlayStore";
 import SecureMailModal from "./ros/SecureMailModal";
 import NotificationPanel from "./ros/NotificationPanel";
@@ -227,21 +230,31 @@ function WarRoomView({ highContrast }: { highContrast: boolean }) {
   const [activeQueue, setActiveQueue] = useState("Priority Alpha");
   const [selectedFeed, setSelectedFeed] = useState<number | null>(null);
   const [deployStatus, setDeployStatus] = useState("idle");
+  const [loading, setLoading] = useState(true);
+  const [metrics, setMetrics] = useState({ activeCases: 0, escalatedCases: 0, childrenRescuedToday: 0, openOperations: 0 });
+  const [priorityQueues, setPriorityQueues] = useState<any[]>([]);
+  const [liveFeeds, setLiveFeeds] = useState<any[]>([]);
 
-  const priorityQueues = [
-    { id: "Priority Alpha", count: 34, color: "red" },
-    { id: "Priority Beta", count: 102, color: "amber" },
-    { id: "New Cases Today", count: 45, color: "blue" },
-    { id: "Cases Awaiting Action", count: 12, color: "gray" },
-  ];
-
-  const liveFeeds = [
-    { id: 1, type: "alert", title: "Emergency Alert", desc: "Mumbai Terminal 2: Suspected transit.", time: "Just Now", color: "red", icon: AlertTriangle, pos: "top-[30%] left-[45%]" },
-    { id: 2, type: "success", title: "Child Located", desc: "Sector 4, Pune. Team Alpha on site.", time: "2 mins ago", color: "emerald", icon: Shield, pos: "bottom-[35%] right-[35%]" },
-    { id: 3, type: "sighting", title: "Sighting Received", desc: "Match 89% on CCTV 45 - Delhi Station.", time: "15 mins ago", color: "amber", icon: Eye, pos: "top-[50%] right-[30%]" },
-    { id: 4, type: "network", title: "Network Mutation", desc: "New route pattern detected in East Zone.", time: "20 mins ago", color: "purple", icon: Network, pos: "top-[40%] left-[30%]" },
-    { id: 5, type: "evidence", title: "Evidence Uploaded", desc: "Case RK204 dossier updated.", time: "45 mins ago", color: "blue", icon: Database, pos: "bottom-[20%] left-[50%]" },
-  ];
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const res = await fetch(`${import.meta.env.VITE_IWR_API_URL}/dashboard/summary`);
+        if (res.ok) {
+          const data = await res.json();
+          setMetrics(data.metrics);
+          setPriorityQueues(data.priorityQueues);
+          setLiveFeeds(data.liveFeeds);
+        }
+      } catch (err) {
+        console.error("Failed to fetch War Room data:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+    const interval = setInterval(fetchData, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleDeploy = () => {
     setDeployStatus("deploying");
@@ -250,6 +263,20 @@ function WarRoomView({ highContrast }: { highContrast: boolean }) {
       setTimeout(() => setDeployStatus("idle"), 3000);
     }, 1500);
   };
+
+  const createCustomIcon = (color: string, isSelected: boolean) => {
+    const bgColors: Record<string, string> = { red: 'bg-red-500', emerald: 'bg-emerald-500', amber: 'bg-amber-500', purple: 'bg-purple-500', blue: 'bg-blue-500' };
+    const pingColors: Record<string, string> = { red: 'bg-red-400', emerald: 'bg-emerald-400', amber: 'bg-amber-400', purple: 'bg-purple-400', blue: 'bg-blue-400' };
+    const htmlString = `
+      <div class="relative flex h-4 w-4 items-center justify-center">
+        <span class="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${isSelected ? 'bg-white' : pingColors[color]}"></span>
+        <span class="relative inline-flex rounded-full h-3 w-3 ${isSelected ? `${bgColors[color]} ring-2 ring-white` : bgColors[color]} shadow-[0_0_10px_rgba(0,0,0,0.8)]"></span>
+      </div>
+    `;
+    return L.divIcon({ className: 'custom-leaflet-icon', html: htmlString, iconSize: [16, 16], iconAnchor: [8, 8] });
+  };
+
+  if (loading) return <div className="flex items-center justify-center h-full text-emerald-600 font-bold animate-pulse">Establishing Secure Connection to National Command...</div>;
 
   return (
     <>
@@ -275,7 +302,7 @@ function WarRoomView({ highContrast }: { highContrast: boolean }) {
                 <h3 className="font-bold text-xs text-gray-500 tracking-wider uppercase">Active Cases</h3>
                 <Activity className="w-4 h-4 text-emerald-600" />
               </div>
-              <div className="text-3xl font-black">1,245</div>
+              <div className="text-3xl font-black">{metrics.activeCases.toLocaleString()}</div>
             </div>
 
             {/* Escalated Cases */}
@@ -284,7 +311,7 @@ function WarRoomView({ highContrast }: { highContrast: boolean }) {
                 <h3 className="font-bold text-xs text-red-700 tracking-wider uppercase">Escalated Cases</h3>
                 <AlertTriangle className="w-4 h-4 text-red-600" />
               </div>
-              <div className="text-3xl font-black text-red-700">89</div>
+              <div className="text-3xl font-black text-red-700">{metrics.escalatedCases.toLocaleString()}</div>
             </div>
 
             {/* Children Rescued Today */}
@@ -293,7 +320,7 @@ function WarRoomView({ highContrast }: { highContrast: boolean }) {
                 <h3 className="font-bold text-xs text-emerald-700 tracking-wider uppercase">Children Rescued Today</h3>
                 <Shield className="w-4 h-4 text-emerald-600" />
               </div>
-              <div className="text-3xl font-black text-emerald-700">12</div>
+              <div className="text-3xl font-black text-emerald-700">{metrics.childrenRescuedToday.toLocaleString()}</div>
             </div>
 
             {/* Open Operations */}
@@ -302,7 +329,7 @@ function WarRoomView({ highContrast }: { highContrast: boolean }) {
                 <h3 className="font-bold text-xs text-gray-500 tracking-wider uppercase">Open Operations</h3>
                 <Target className="w-4 h-4 text-blue-600" />
               </div>
-              <div className="text-3xl font-black">5</div>
+              <div className="text-3xl font-black">{metrics.openOperations.toLocaleString()}</div>
             </div>
           </div>
 
@@ -358,41 +385,24 @@ function WarRoomView({ highContrast }: { highContrast: boolean }) {
               </div>
               
               {/* Map Placeholder/Area */}
-              <div className="flex-1 w-full h-full relative flex items-center justify-center p-8 overflow-hidden bg-emerald-50/30 dark:bg-emerald-950/20">
-                {/* Background grid */}
-                <div className="absolute inset-0" style={{ background: "radial-gradient(circle at center, #10b98110 2px, transparent 2px)", backgroundSize: "24px 24px" }}></div>
-                
-                <div className="relative w-full max-w-md aspect-square flex items-center justify-center mix-blend-multiply dark:mix-blend-screen opacity-80 transition-transform duration-700 group-hover:scale-105">
-                  <img src={indiaMap} alt="Map of India" className="w-full h-full object-contain drop-shadow-xl filter dark:invert" />
-                  
-                  {/* Animated Pings */}
+              <div className="flex-1 w-full h-full relative z-0 bg-stone-900">
+                <MapContainer center={[22.5937, 78.9629]} zoom={5} style={{ height: '100%', width: '100%' }} zoomControl={false}>
+                  <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
                   {liveFeeds.map(feed => {
                     const isSelected = selectedFeed === feed.id;
-                    const bgColors: Record<string, string> = {
-                      red: 'bg-red-500', emerald: 'bg-emerald-500', amber: 'bg-amber-500', purple: 'bg-purple-500', blue: 'bg-blue-500'
-                    };
-                    const pingColors: Record<string, string> = {
-                      red: 'bg-red-400', emerald: 'bg-emerald-400', amber: 'bg-amber-400', purple: 'bg-purple-400', blue: 'bg-blue-400'
-                    };
-                    const textColors: Record<string, string> = {
-                      red: 'text-red-600', emerald: 'text-emerald-600', amber: 'text-amber-600', purple: 'text-purple-600', blue: 'text-blue-600'
-                    };
-                    
+                    const textColors: Record<string, string> = { red: 'text-red-600', emerald: 'text-emerald-600', amber: 'text-amber-600', purple: 'text-purple-600', blue: 'text-blue-600' };
                     return (
-                      <div key={feed.id} className={`absolute ${feed.pos} cursor-pointer transition-all duration-300 ${isSelected ? 'scale-[2.5] z-20' : 'hover:scale-150 z-10'}`} onClick={() => setSelectedFeed(feed.id)}>
-                        <span className="flex h-3 w-3">
-                          <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${isSelected ? 'bg-white' : pingColors[feed.color]}`}></span>
-                          <span className={`relative inline-flex rounded-full h-3 w-3 ${isSelected ? `${bgColors[feed.color]} ring-2 ring-white` : bgColors[feed.color]} shadow-[0_0_10px_rgba(0,0,0,0.8)]`}></span>
-                        </span>
-                        {isSelected && (
-                          <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-white dark:bg-stone-900 border border-gray-200 dark:border-stone-700 rounded p-2 shadow-xl whitespace-nowrap z-30">
-                            <div className={`text-[10px] font-bold uppercase ${textColors[feed.color]}`}>{feed.title}</div>
+                      <Marker key={feed.id} position={[feed.lat, feed.lng]} icon={createCustomIcon(feed.color, isSelected)} eventHandlers={{ click: () => setSelectedFeed(feed.id) }}>
+                        <Popup className="custom-popup">
+                          <div className="p-1">
+                            <div className={`text-xs font-bold uppercase ${textColors[feed.color]}`}>{feed.title}</div>
+                            <div className="text-[10px] text-gray-600 dark:text-gray-400 mt-1">{feed.desc}</div>
                           </div>
-                        )}
-                      </div>
-                    );
+                        </Popup>
+                      </Marker>
+                    )
                   })}
-                </div>
+                </MapContainer>
               </div>
 
               {/* Map Legend */}
@@ -420,7 +430,12 @@ function WarRoomView({ highContrast }: { highContrast: boolean }) {
               <div className="p-4 flex-1 overflow-y-auto space-y-3">
                 {/* Feed Items */}
                 {liveFeeds.map(feed => {
-                  const Icon = feed.icon;
+                  let Icon = AlertTriangle;
+                  if (feed.type === 'success') Icon = Shield;
+                  if (feed.type === 'sighting') Icon = Eye;
+                  if (feed.type === 'network') Icon = Network;
+                  if (feed.type === 'evidence') Icon = Database;
+                  
                   return (
                     <div 
                       key={feed.id} 
@@ -513,25 +528,38 @@ function TraffickingGenomeLabView({ highContrast }: { highContrast: boolean }) {
   const [activeSuspectId, setActiveSuspectId] = useState<string | null>(null);
   const [trackingSuspects, setTrackingSuspects] = useState<Record<string, boolean>>({});
 
-  const emergingNetworks = [
-    { id: 'n1', name: 'Syndicate X', metrics: { kingpin: 65, strength: 40, collapse: 80, mutation: 45 }, summary: { target: 'Syndicate X', expansion: 'Mumbai', route: 'Coastal Highway', risk: 'MEDIUM' } },
-    { id: 'n2', name: 'Route 44', metrics: { kingpin: 70, strength: 55, collapse: 60, mutation: 50 }, summary: { target: 'Route 44', expansion: 'Surat', route: 'NH-48', risk: 'HIGH' } },
-    { id: 'n3', name: 'Red Circle', metrics: { kingpin: 50, strength: 30, collapse: 85, mutation: 30 }, summary: { target: 'Red Circle', expansion: 'Goa', route: 'Konkan Line', risk: 'LOW' } }
-  ];
+  const [emergingNetworks, setEmergingNetworks] = useState<any[]>([]);
+  const [highActivityNetworks, setHighActivityNetworks] = useState<any[]>([]);
+  const [suspects, setSuspects] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const highActivityNetworks = [
-    { id: 'n4', name: 'Network G12', metrics: { kingpin: 92, strength: 85, collapse: 42, mutation: 78 }, summary: { target: 'Network G12', expansion: 'Pune', route: 'Nashik Corridor', risk: 'CRITICAL' } },
-    { id: 'n5', name: 'Viper Cell', metrics: { kingpin: 88, strength: 90, collapse: 30, mutation: 85 }, summary: { target: 'Viper Cell', expansion: 'Nagpur', route: 'Eastern Highway', risk: 'CRITICAL' } }
-  ];
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const res = await fetch(`${import.meta.env.VITE_IWR_API_URL}/dashboard/genome`);
+        if (res.ok) {
+          const data = await res.json();
+          setEmergingNetworks(data.emergingNetworks || []);
+          setHighActivityNetworks(data.highActivityNetworks || []);
+          setSuspects(data.suspects || []);
+        }
+      } catch (err) {
+        console.error("Failed to fetch Genome Lab data:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+    const interval = setInterval(fetchData, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
-  const suspects = [
-    { id: 's1', name: 'Rohan K.', type: 'Suspect' },
-    { id: 's2', name: 'Ali M.', type: 'Suspect' },
-    { id: 's3', name: 'Unknown Alpha', type: 'Suspect' }
-  ];
+  if (loading) return <div className="flex items-center justify-center h-full text-emerald-600 font-bold animate-pulse">Establishing Secure Connection to Lab...</div>;
 
   const allNetworks = [...emergingNetworks, ...highActivityNetworks];
   const activeNetwork = allNetworks.find(n => n.id === activeNetworkId) || allNetworks[0];
+
+  if (!activeNetwork) return <div className="flex items-center justify-center h-full text-emerald-600 font-bold">No active networks detected.</div>;
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -1229,28 +1257,46 @@ function LiveCasesView({ highContrast }: { highContrast: boolean }) {
   const [activeCaseId, setActiveCaseId] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
-  const [isCaseFileOpen, setIsCaseFileOpen] = useState(false);
-  
-  const categories = [
-    { label: "Active", count: 1245, color: "emerald" },
-    { label: "Escalated", count: 89, color: "red" },
-    { label: "Cold Cases", count: 342, color: "gray" },
-    { label: "Unassigned Cases", count: 15, color: "amber" }
-  ];
-
-  const [allCases, setAllCases] = useState([
-    { id: 1, name: "Rohan Kumar", age: 8, risk: 92, missingHours: 48, status: "Active Search", category: "Active", img: "https://images.unsplash.com/photo-1618640726880-9092497f1fbc?auto=format&fit=crop&w=150&q=80" },
-    { id: 2, name: "Aarav Patel", age: 6, risk: 85, missingHours: 24, status: "Investigating", category: "Active", img: "https://images.unsplash.com/photo-1519340241574-2cebc577ee80?auto=format&fit=crop&w=150&q=80" },
-    { id: 3, name: "Priya Singh", age: 10, risk: 98, missingHours: 72, status: "Critical", category: "Escalated", img: "https://images.unsplash.com/photo-1522262590532-a991489a0253?auto=format&fit=crop&w=150&q=80" },
-    { id: 4, name: "Kavya Sharma", age: 7, risk: 90, missingHours: 12, status: "Active Search", category: "Active", img: "https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?auto=format&fit=crop&w=150&q=80" },
-    { id: 5, name: "Aditya Verma", age: 12, risk: 65, missingHours: 480, status: "Cold", category: "Cold Cases", img: "https://images.unsplash.com/photo-1492681290082-e932832941e6?auto=format&fit=crop&w=150&q=80" },
+  const [isCaseFileOpen, setIsCaseFileOpen] = useState(false);  
+  const [categories, setCategories] = useState([
+    { label: "Active", count: 0, color: "emerald" },
+    { label: "Escalated", count: 0, color: "red" },
+    { label: "Cold Cases", count: 0, color: "gray" },
+    { label: "Unassigned Cases", count: 0, color: "amber" }
   ]);
+
+  const [allCases, setAllCases] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const res = await fetch(`${import.meta.env.VITE_IWR_API_URL}/dashboard/cases`);
+        if (res.ok) {
+          const data = await res.json();
+          setCategories(data.categories || categories);
+          setAllCases(data.cases || []);
+        }
+      } catch (err) {
+        console.error("Failed to fetch Cases data:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+    const interval = setInterval(fetchData, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  if (loading) return <div className="flex items-center justify-center h-full text-emerald-600 font-bold animate-pulse">Syncing Case Files...</div>;
 
   const filteredCases = allCases.filter(c => 
     c.category === activeCategory &&
     c.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
   const activeCase = allCases.find(c => c.id === activeCaseId) || filteredCases[0] || allCases[0];
+
+  if (!activeCase) return <div className="flex items-center justify-center h-full text-emerald-600 font-bold">No active cases found.</div>;
 
   return (
     <div className="flex flex-col">
@@ -1572,13 +1618,29 @@ function LeadFusionCenterView({ highContrast }: { highContrast: boolean }) {
   const [activeFilter, setActiveFilter] = useState("All");
   const [activeLeadId, setActiveLeadId] = useState(1);
 
-  const [leads, setLeads] = useState([
-    { id: 1, type: "Sightings", status: "Unverified", title: "Target Vehicle Spotted", source: "Citizen App", time: "5m ago", location: "Pune-Mumbai Expressway, Toll Plaza", distance: "4.2 km", linkedCase: "MH-2026-4001", confidence: 45, priority: "High", assignedOfficer: "Unassigned", desc: "A black SUV matching the description of the suspect vehicle was seen heading towards Mumbai." },
-    { id: 2, type: "Anonymous Tips", status: "AI Reviewed", title: "Suspicious Activity at Warehouse", source: "Helpline", time: "18m ago", location: "Sector 14, Industrial Area", distance: "1.1 km", linkedCase: "None", confidence: 72, priority: "Medium", assignedOfficer: "None", desc: "Multiple unfamiliar vehicles parked outside the abandoned warehouse since midnight." },
-    { id: 3, type: "Witness Reports", status: "Officer Reviewed", title: "Person matching Kingpin Alpha", source: "Patrol Unit", time: "1h ago", location: "Nashik City Center Mall", distance: "0.8 km", linkedCase: "MH-2026-4001", confidence: 85, priority: "Critical", assignedOfficer: "Officer Sharma", desc: "A witness reported seeing an individual resembling Kingpin Alpha entering the mall's basement parking." },
-    { id: 4, type: "Media Uploads", status: "Verified", title: "CCTV Footage of Meeting", source: "Traffic Dept", time: "3h ago", location: "Ring Road Intersection", distance: "12 km", linkedCase: "MH-2026-4005", confidence: 98, priority: "Critical", assignedOfficer: "Officer Patil", desc: "Traffic camera captured a clear exchange between Suspect Bravo and an unknown associate." },
-    { id: 5, type: "Sightings", status: "Unverified", title: "Possible Suspect on Train", source: "Railway Police", time: "4h ago", location: "Pune Station, Platform 3", distance: "8.5 km", linkedCase: "MH-2026-4001", confidence: 30, priority: "Low", assignedOfficer: "Unassigned", desc: "Passenger reported seeing someone acting suspiciously, trying to hide their face." }
-  ]);
+  const [leads, setLeads] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const res = await fetch(`${import.meta.env.VITE_IWR_API_URL}/dashboard/leads`);
+        if (res.ok) {
+          const data = await res.json();
+          setLeads(data.leads || []);
+        }
+      } catch (err) {
+        console.error("Failed to fetch Leads data:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+    const interval = setInterval(fetchData, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  if (loading) return <div className="flex items-center justify-center h-full text-emerald-600 font-bold animate-pulse">Aggregating Global Feeds...</div>;
 
   const handleAction = (action: string) => {
     setLeads(prevLeads => prevLeads.map(lead => {
@@ -1601,6 +1663,8 @@ function LeadFusionCenterView({ highContrast }: { highContrast: boolean }) {
 
   const filteredLeads = activeFilter === "All" ? leads : leads.filter(l => l.status === activeFilter);
   const activeLead = leads.find(l => l.id === activeLeadId) || leads[0];
+
+  if (!activeLead) return <div className="flex items-center justify-center h-full text-emerald-600 font-bold">No active leads found.</div>;
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
