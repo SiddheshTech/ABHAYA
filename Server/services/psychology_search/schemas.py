@@ -16,6 +16,35 @@ class CognitiveMapInput(BaseModel):
     radius_km: float
     child_profile: str # e.g. "Autistic", "ADHD", "Runaway"
 
+class PredictedPathPoint(BaseModel):
+    lat: float
+    lng: float
+
+class HeatmapBlob(BaseModel):
+    lat: float
+    lng: float
+    radius: float
+    r: int
+    g: int
+    b: int
+    intensity: float
+
+class Landmark(BaseModel):
+    name: str
+    type: str
+    lat: float
+    lng: float
+
+class AIExplanation(BaseModel):
+    title: str
+    confidence: str
+    summary: str
+    evidence: str
+    reasoning: str
+
 class CognitiveMapResponse(BaseModel):
     search_radius_km: float
-    heatmap_geojson: Dict[str, Any]
+    predicted_path: List[PredictedPathPoint]
+    heatmaps: List[HeatmapBlob]
+    landmarks: List[Landmark]
+    explanations: List[AIExplanation]

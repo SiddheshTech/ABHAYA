@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import * as THREE from "three";
+import Globe from "react-globe.gl";
+import { io } from "socket.io-client";
 import {
   Search,
   Filter,
@@ -49,14 +50,8 @@ export default function OperationsGlobeView({
   const { addToast } = useToastStore();
   const { teams, drones, kpis } = useMissionStore();
 
-  // Active cases (Targets)
-  const [cases] = useState<CaseObject[]>([
-    { id: "CASE-409", name: "Suresh (Lost Minor)", type: "Child", region: "Sikkim Corridor", lat: 26.7271, lon: 88.5953, status: "Active Search", priority: "Critical", assignedTeam: "Team Alpha" },
-    { id: "CASE-112", name: "Priya Das", type: "Child", region: "Darjeeling Border", lat: 27.0375, lon: 88.2627, status: "Active Search", priority: "High", assignedTeam: "K9-Unit 03" },
-    { id: "CASE-802", name: "Karan Johar", type: "Child", region: "Siliguri Railway Terminal", lat: 26.7125, lon: 88.4236, status: "Active Search", priority: "Critical", assignedTeam: "Team Delta" },
-    { id: "CASE-921", name: "Ananya Sen", type: "Child", region: "Gangtok Transit Block", lat: 27.3314, lon: 88.6138, status: "Standby", priority: "Medium", assignedTeam: "UAV-Alpha" },
-    { id: "CASE-304", name: "Rohit Sharma", type: "Child", region: "Kalimpong Crossing", lat: 27.0594, lon: 88.4694, status: "Assisted", priority: "Low", assignedTeam: "Patrol-02" },
-  ]);
+  const [cases, setCases] = useState<CaseObject[]>([]);
+  const [liveTeams, setLiveTeams] = useState<any[]>([]);
 
   // States
   const [searchQuery, setSearchQuery] = useState("");
@@ -116,389 +111,59 @@ export default function OperationsGlobeView({
 
   const [zoom, setZoom] = useState(1.0);
   const [isRotating, setIsRotating] = useState(true);
+  const globeRef = useRef<any>(null);
 
-  // References for Three.js
-  const canvasContainerRef = useRef<HTMLDivElement | null>(null);
-  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
-  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
-  const sceneRef = useRef<THREE.Scene | null>(null);
-  const globeGroupRef = useRef<THREE.Group | null>(null);
-  const routeLineRef = useRef<THREE.Line | null>(null);
-  
-  // Drag rotation helper refs
-  const isDragging = useRef(false);
-  const previousMousePosition = useRef({ x: 0, y: 0 });
-  const targetRotation = useRef({ x: -0.4, y: 1.4 });
-  const currentRotation = useRef({ x: -0.4, y: 1.4 });
-
-  // Floating labels state (Projected screen coordinates)
-  const [projectedMarkers, setProjectedMarkers] = useState<Array<{
-    id: string;
-    name: string;
-    type: "child" | "team" | "drone" | "cctv" | "tower" | "checkpoint";
-    x: number;
-    y: number;
-    visible: boolean;
-    color: string;
-    details: any;
-  }>>([]);
-
-  // Generate tactical procedural earth texture canvas
-  const createEarthTexture = () => {
-    const canvas = document.createElement("canvas");
-    canvas.width = 1024;
-    canvas.height = 512;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return new THREE.Texture();
-
-    // Deep space background
-    ctx.fillStyle = "#030712";
-    ctx.fillRect(0, 0, 1024, 512);
-
-    // Render dotted cyber grid lines
-    ctx.fillStyle = "rgba(16, 185, 129, 0.04)";
-    for (let x = 0; x < 1024; x += 16) {
-      for (let y = 0; y < 512; y += 16) {
-        ctx.fillRect(x, y, 2, 2);
-      }
-    }
-
-    // High-contrast vector continents drawing
-    const continents = [
-      // Eurasia & Africa
-      [[300, 100], [450, 80], [600, 120], [750, 100], [800, 180], [700, 300], [600, 280], [530, 380], [450, 320], [350, 200], [300, 100]],
-      // Americas
-      [[100, 120], [200, 110], [250, 200], [200, 280], [280, 380], [220, 480], [180, 420], [150, 300], [100, 220], [100, 120]],
-      // Australia
-      [[780, 320], [840, 340], [830, 400], [770, 380], [780, 320]],
-      // Greenland
-      [[250, 50], [320, 40], [300, 80], [240, 70], [250, 50]]
-    ];
-
-    ctx.fillStyle = "#0c1524";
-    ctx.strokeStyle = "rgba(16, 185, 129, 0.35)";
-    ctx.lineWidth = 1.5;
-
-    continents.forEach(poly => {
-      ctx.beginPath();
-      poly.forEach(([x, y], idx) => {
-        if (idx === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-      });
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-
-      // Dotted filling inside landmasses
-      ctx.save();
-      ctx.clip();
-      ctx.fillStyle = "rgba(16, 185, 129, 0.15)";
-      for (let x = 0; x < 1024; x += 12) {
-        for (let y = 0; y < 512; y += 12) {
-          ctx.fillRect(x, y, 1.5, 1.5);
-        }
-      }
-      ctx.restore();
-    });
-
-    // Drawing major glowing cities
-    ctx.fillStyle = "#10b981";
-    ctx.shadowColor = "#10b981";
-    ctx.shadowBlur = 4;
-    [
-      [680, 190], [520, 160], [420, 220], [220, 190], [800, 360], [480, 360]
-    ].forEach(([x, y]) => {
-      ctx.beginPath();
-      ctx.arc(x, y, 2.5, 0, Math.PI * 2);
-      ctx.fill();
-    });
-
-    return new THREE.CanvasTexture(canvas);
-  };
-
-  // ThreeJS initialization and Render Loop
   useEffect(() => {
-    if (!canvasContainerRef.current) return;
-    const width = canvasContainerRef.current.clientWidth;
-    const height = canvasContainerRef.current.clientHeight;
-
-    // Create Scene
-    const scene = new THREE.Scene();
-    sceneRef.current = scene;
-
-    // Create Camera
-    const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
-    camera.position.z = 4.5;
-    cameraRef.current = camera;
-
-    // Create Renderer
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setSize(width, height);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    rendererRef.current = renderer;
-
-    // Clean up previous canvas
-    canvasContainerRef.current.innerHTML = "";
-    canvasContainerRef.current.appendChild(renderer.domElement);
-
-    // Group to hold all rotatable globe layers
-    const globeGroup = new THREE.Group();
-    globeGroupRef.current = globeGroup;
-    scene.add(globeGroup);
-
-    // 1. Earth Sphere
-    const earthTex = createEarthTexture();
-    const earthGeom = new THREE.SphereGeometry(1.5, 64, 64);
-    const earthMat = new THREE.MeshStandardMaterial({
-      map: earthTex,
-      roughness: 0.5,
-      metalness: 0.6,
-    });
-    const earthMesh = new THREE.Mesh(earthGeom, earthMat);
-    globeGroup.add(earthMesh);
-
-    // 2. Atmospheric Glow Shader (Fresnel effect)
-    const atmosphereGeom = new THREE.SphereGeometry(1.56, 64, 64);
-    const atmosphereMat = new THREE.ShaderMaterial({
-      vertexShader: `
-        varying vec3 vNormal;
-        void main() {
-          vNormal = normalize(normalMatrix * normal);
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        }
-      `,
-      fragmentShader: `
-        varying vec3 vNormal;
-        void main() {
-          float intensity = pow(0.6 - dot(vNormal, vec3(0, 0, 1.0)), 2.0);
-          gl_FragColor = vec4(16.0/255.0, 185.0/255.0, 129.0/255.0, 1.0) * intensity;
-        }
-      `,
-      blending: THREE.AdditiveBlending,
-      side: THREE.BackSide,
-      transparent: true,
-    });
-    const atmosphereMesh = new THREE.Mesh(atmosphereGeom, atmosphereMat);
-    globeGroup.add(atmosphereMesh);
-
-    // 3. Dynamic Orbit Rings and Satellites
-    const orbitPoints: THREE.Vector3[] = [];
-    const R_orbit = 2.0;
-    for (let i = 0; i <= 64; i++) {
-      const theta = (i / 64) * Math.PI * 2;
-      orbitPoints.push(new THREE.Vector3(Math.cos(theta) * R_orbit, 0, Math.sin(theta) * R_orbit));
+    if (globeRef.current && isRotating) {
+      globeRef.current.controls().autoRotate = true;
+      globeRef.current.controls().autoRotateSpeed = 0.5;
+    } else if (globeRef.current) {
+      globeRef.current.controls().autoRotate = false;
     }
-    const orbitGeom = new THREE.BufferGeometry().setFromPoints(orbitPoints);
-    orbitGeom.rotateX(Math.PI / 4);
-    orbitGeom.rotateY(Math.PI / 6);
-    
-    const orbitLine = new THREE.Line(orbitGeom, new THREE.LineBasicMaterial({
-      color: 0x10b981,
-      transparent: true,
-      opacity: 0.2
-    }));
-    globeGroup.add(orbitLine);
+  }, [isRotating]);
 
-    // Orbit Satellite Object
-    const satelliteGeom = new THREE.SphereGeometry(0.04, 8, 8);
-    const satelliteMat = new THREE.MeshBasicMaterial({ color: 0x3b82f6 });
-    const satellite = new THREE.Mesh(satelliteGeom, satelliteMat);
-    globeGroup.add(satellite);
+  useEffect(() => {
+    if (selectedCase && globeRef.current) {
+      globeRef.current.pointOfView({ lat: selectedCase.lat, lng: selectedCase.lon, altitude: 0.5 }, 1500);
+      setIsRotating(false);
+    }
+  }, [selectedCase]);
 
-    // Scanning Cone/Laser Line
-    const laserPoints = [new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, 0)];
-    const laserGeom = new THREE.BufferGeometry().setFromPoints(laserPoints);
-    const laserLine = new THREE.Line(laserGeom, new THREE.LineBasicMaterial({
-      color: 0xf59e0b,
-      transparent: true,
-      opacity: 0.5
-    }));
-    globeGroup.add(laserLine);
+  const mapData = useMemo(() => {
+    let points = [];
+    if (layers.missingChildren) {
+      points.push(...cases.map(c => ({ ...c, color: '#eab308', size: 1.5, type: 'case' })));
+    }
+    if (layers.groundTeams) {
+      points.push(...liveTeams.filter(t => t.type === 'groundTeams').map(t => ({ ...t, size: 0.8, type: 'team' })));
+    }
+    if (layers.droneUnits) {
+      points.push(...liveTeams.filter(t => t.type === 'droneUnits').map(t => ({ ...t, size: 0.8, type: 'drone' })));
+    }
+    return points;
+  }, [cases, liveTeams, layers]);
 
-    // 4. Rotating Scanner Radar Plane
-    const radarRingGeom = new THREE.RingGeometry(1.5, 1.51, 64);
-    const radarRingMat = new THREE.MeshBasicMaterial({
-      color: 0x10b981,
-      side: THREE.DoubleSide,
-      transparent: true,
-      opacity: 0.4
-    });
-    const radarRing = new THREE.Mesh(radarRingGeom, radarRingMat);
-    radarRing.rotation.x = Math.PI / 2;
-    globeGroup.add(radarRing);
-
-    // Ambient and Directional Day/Night Lighting
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.25);
-    scene.add(ambientLight);
-
-    const sunLight = new THREE.DirectionalLight(0xffffff, 1.2);
-    sunLight.position.set(5, 3, 5);
-    scene.add(sunLight);
-
-    // Handle Window Resize via ResizeObserver
-    const resizeObserver = new THREE.Box3(); // temporary placeholder
-    const handleResize = () => {
-      if (!canvasContainerRef.current) return;
-      const w = canvasContainerRef.current.clientWidth;
-      const h = canvasContainerRef.current.clientHeight;
-      if (camera) {
-        camera.aspect = w / h;
-        camera.updateProjectionMatrix();
-      }
-      renderer.setSize(w, h);
-    };
-    window.addEventListener("resize", handleResize);
-
-    // Render loop
-    let animationId: number;
-    const tempV = new THREE.Vector3();
-
-    const animate = () => {
-      animationId = requestAnimationFrame(animate);
-
-      // Auto rotation mapping
-      if (isRotating && !isDragging.current) {
-        targetRotation.current.y += 0.0018;
-      }
-
-      // Smooth camera interpolation (Inertia & Damping)
-      currentRotation.current.x += (targetRotation.current.x - currentRotation.current.x) * 0.08;
-      currentRotation.current.y += (targetRotation.current.y - currentRotation.current.y) * 0.08;
-      globeGroup.rotation.x = currentRotation.current.x;
-      globeGroup.rotation.y = currentRotation.current.y;
-
-      // Smooth zoom interpolations
-      camera.position.z += (4.5 * zoom - camera.position.z) * 0.08;
-
-      // Animate satellite path
-      const t = Date.now() * 0.00025;
-      const satX = Math.cos(t) * R_orbit;
-      const satZ = Math.sin(t) * R_orbit;
-      const satPos = new THREE.Vector3(satX, 0, satZ).applyMatrix4(
-        new THREE.Matrix4().makeRotationX(Math.PI / 4).multiply(new THREE.Matrix4().makeRotationY(Math.PI / 6))
-      );
-      satellite.position.copy(satPos);
-
-      // Animate Scanning Laser Beam
-      const surfaceTarget = satPos.clone().normalize().multiplyScalar(1.5);
-      const beamPoints = [satPos, surfaceTarget];
-      laserLine.geometry.setFromPoints(beamPoints);
-
-      // Scale up and fade out the radar rings
-      radarRing.scale.addScalar(0.004);
-      radarRingMat.opacity -= 0.004;
-      if (radarRing.scale.x > 1.35) {
-        radarRing.scale.set(1, 1, 1);
-        radarRingMat.opacity = 0.45;
-      }
-
-      // Projection mapping: convert 3D coordinates to 2D screen coordinate markers
-      const updatedMarkers: any[] = [];
-      const R = 1.5;
-
-      const projectCoord = (lat: number, lon: number, id: string, name: string, type: any, color: string, details?: any) => {
-        const latRad = (lat * Math.PI) / 180;
-        const lonRad = (-lon * Math.PI) / 180; // match texture orientation
-        
-        tempV.set(
-          R * Math.cos(latRad) * Math.cos(lonRad),
-          R * Math.sin(latRad),
-          R * Math.cos(latRad) * Math.sin(lonRad)
-        );
-
-        // Apply global rotation matrix of globeGroup manually to find visibility relative to camera
-        const worldPos = tempV.clone().applyMatrix4(globeGroup.matrixWorld);
-        const isVisible = worldPos.dot(camera.position) > 0.15; // dot product determines if facing camera
-
-        worldPos.project(camera);
-        
-        const screenX = (worldPos.x * 0.5 + 0.5) * width;
-        const screenY = (worldPos.y * -0.5 + 0.5) * height;
-
-        updatedMarkers.push({
-          id,
-          name,
-          type,
-          x: screenX,
-          y: screenY,
-          visible: isVisible,
-          color,
-          details
-        });
-      };
-
-      // Project missing children targets
-      if (layers.missingChildren) {
-        cases.forEach(c => {
-          projectCoord(c.lat, c.lon, c.id, c.name, "child", "#ef4444", c);
-        });
-      }
-
-      // Project Ground Teams (live from useMissionStore)
-      if (layers.groundTeams && teams) {
-        teams.forEach(t => {
-          projectCoord(t.location.lat, t.location.lng, t.id, t.name, "team", "#3b82f6", t);
-        });
-      }
-
-      // Project Airborne Drones (live from useMissionStore)
-      if (layers.droneUnits && drones) {
-        drones.forEach(d => {
-          projectCoord(d.location.lat, d.location.lng, d.id, d.name, "drone", "#10b981", d);
-        });
-      }
-
-      // Project dynamic sub-layer structures
-      if (layers.cctvCameras) {
-        projectCoord(26.85, 88.45, "CCTV-01", "Gateway CCTV", "cctv", "#06b6d4");
-        projectCoord(27.10, 88.35, "CCTV-02", "Border Toll Camera", "cctv", "#06b6d4");
-      }
-      if (layers.mobileTowers) {
-        projectCoord(26.65, 88.60, "TWR-09", "Teesta Tower Base", "tower", "#eab308");
-      }
-
-      setProjectedMarkers(updatedMarkers);
-      renderer.render(scene, camera);
-    };
-
-    animate();
-
-    return () => {
-      cancelAnimationFrame(animationId);
-      window.removeEventListener("resize", handleResize);
-    };
-  }, [layers, zoom, isRotating, cases, teams, drones]);
-
-  // Drag interaction events
-  const handleMouseDown = (e: React.MouseEvent) => {
-    isDragging.current = true;
-    previousMousePosition.current = { x: e.clientX, y: e.clientY };
-    setIsRotating(false);
+  const handleZoomIn = () => {
+    if (globeRef.current) {
+      const currentPov = globeRef.current.pointOfView();
+      globeRef.current.pointOfView({ ...currentPov, altitude: Math.max(0.1, currentPov.altitude - 0.2) }, 500);
+    }
   };
 
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging.current) return;
-    const deltaX = e.clientX - previousMousePosition.current.x;
-    const deltaY = e.clientY - previousMousePosition.current.y;
-
-    targetRotation.current.y += deltaX * 0.008;
-    targetRotation.current.x = Math.max(-1.4, Math.min(1.4, targetRotation.current.x + deltaY * 0.008));
-
-    previousMousePosition.current = { x: e.clientX, y: e.clientY };
+  const handleZoomOut = () => {
+    if (globeRef.current) {
+      const currentPov = globeRef.current.pointOfView();
+      globeRef.current.pointOfView({ ...currentPov, altitude: Math.min(3.0, currentPov.altitude + 0.2) }, 500);
+    }
   };
 
-  const handleMouseUp = () => {
-    isDragging.current = false;
-  };
-
-  const handleZoomIn = () => setZoom(z => Math.max(0.5, z - 0.15));
-  const handleZoomOut = () => setZoom(z => Math.min(2.0, z + 0.15));
   const handleReset = () => {
-    targetRotation.current = { x: -0.4, y: 1.4 };
-    setZoom(1.0);
-    setIsRotating(true);
-    setSelectedCase(null);
-    addToast("Camera focus and satellite path realigned to default sector", "info");
+    if (globeRef.current) {
+      globeRef.current.pointOfView({ lat: 26.7271, lng: 88.5953, altitude: 2.0 }, 1000);
+      setIsRotating(true);
+      setSelectedCase(null);
+      addToast("Camera focus and satellite path realigned to default sector", "info");
+    }
   };
 
   // Immediate weather scan trigger
@@ -555,80 +220,35 @@ export default function OperationsGlobeView({
     } else {
       // Rotate camera to unit location
       const loc = s.item.location;
-      targetRotation.current.y = (-loc.lng * Math.PI) / 180 + Math.PI / 2;
-      targetRotation.current.x = (loc.lat * Math.PI) / 180;
-      setZoom(0.8);
+      globeRef.current?.pointOfView({ lat: loc.lat, lng: loc.lng, altitude: 0.5 }, 1500);
       addToast(`Satellite tracking established on ${s.item.name}`, "info");
     }
   };
 
   const handleCaseSelect = (c: CaseObject) => {
     setSelectedCase(c);
-    // Align camera rotation perfectly over target lat/lon
-    targetRotation.current.y = (-c.lon * Math.PI) / 180 + Math.PI / 2;
-    targetRotation.current.x = (c.lat * Math.PI) / 180;
-    setZoom(0.75); // zoom in closely
-    setIsRotating(false);
-    addToast(`Satellite Target Locked: ${c.name} [${c.id}]`, "success");
-
-    // Dynamic AI prediction line / route connecting to nearest drone/team
-    if (sceneRef.current && globeGroupRef.current) {
-      if (routeLineRef.current) globeGroupRef.current.remove(routeLineRef.current);
-
-      // Find closest team or drone
-      const closestTeam = teams.length > 0 ? teams[0] : null;
-      if (closestTeam) {
-        // Build 3D bezier arc
-        const startLat = c.lat; const startLon = c.lon;
-        const endLat = closestTeam.location.lat; const endLon = closestTeam.location.lng;
-
-        const R = 1.5;
-        const startRadLat = (startLat * Math.PI)/180; const startRadLon = (-startLon * Math.PI)/180;
-        const endRadLat = (endLat * Math.PI)/180; const endRadLon = (-endLon * Math.PI)/180;
-
-        const p1 = new THREE.Vector3(R*Math.cos(startRadLat)*Math.cos(startRadLon), R*Math.sin(startRadLat), R*Math.cos(startRadLat)*Math.sin(startRadLon));
-        const p2 = new THREE.Vector3(R*Math.cos(endRadLat)*Math.cos(endRadLon), R*Math.sin(endRadLat), R*Math.cos(endRadLat)*Math.sin(endRadLon));
-
-        // curve height
-        const midPoint = new THREE.Vector3().addVectors(p1, p2).multiplyScalar(0.5).normalize().multiplyScalar(1.7);
-        const curve = new THREE.QuadraticBezierCurve3(p1, midPoint, p2);
-        
-        const routePoints = curve.getPoints(30);
-        const routeGeom = new THREE.BufferGeometry().setFromPoints(routePoints);
-        const routeLine = new THREE.Line(routeGeom, new THREE.LineBasicMaterial({
-          color: 0xf59e0b,
-          linewidth: 2,
-        }));
-        routeLineRef.current = routeLine;
-        globeGroupRef.current.add(routeLine);
-      }
+    if (globeRef.current) {
+      globeRef.current.pointOfView({ lat: c.lat, lng: c.lon, altitude: 0.5 }, 1500);
+      setIsRotating(false);
     }
+    addToast(`Satellite Target Locked: ${c.name} [${c.id}]`, "success");
   };
 
   // Voice command assistant simulator
   const handleVoiceSearch = () => {
     if (isListening) {
       setIsListening(false);
-      return;
+      setVoiceStatus("");
+    } else {
+      setIsListening(true);
+      setVoiceStatus("LISTENING...");
+      setTimeout(() => setVoiceStatus("PROCESSING COMMAND..."), 2000);
+      setTimeout(() => {
+        setIsListening(false);
+        setVoiceStatus("");
+        addToast("Voice Command parsed: 'Focus Sector 4 drones'", "info");
+      }, 3500);
     }
-    setIsListening(true);
-    setVoiceStatus("Connecting speech synthesis engine...");
-
-    setTimeout(() => {
-      setVoiceStatus("Listening for command...");
-    }, 1000);
-
-    setTimeout(() => {
-      setVoiceStatus("Transcribing: 'Find active drone UAV-Alpha'...");
-    }, 2500);
-
-    setTimeout(() => {
-      setIsListening(false);
-      const drone = drones.find(d => d.id === "UAV-Alpha") || drones[0];
-      if (drone) {
-        handleSelectSuggestion({ type: "drone", item: drone });
-      }
-    }, 4000);
   };
 
   // Ask Mission AI Copilot Chat backend connectivity
@@ -815,49 +435,36 @@ export default function OperationsGlobeView({
 
       {/* 2. Main Interactive 3D Canvas Container */}
       <div className="flex-1 w-full h-full rounded-2xl overflow-hidden relative border border-emerald-500/10 shadow-2xl">
-        <div
-          ref={canvasContainerRef}
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
-          className="w-full h-full block cursor-grab active:cursor-grabbing bg-slate-950"
-        />
-
-        {/* Dynamic HTML labels floating in sync over the Three.js Globe */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          {projectedMarkers.map(m => {
-            if (!m.visible) return null;
-            return (
-              <div
-                key={m.id}
-                className="absolute -translate-x-1/2 -translate-y-1/2 pointer-events-auto flex flex-col items-center select-none"
-                style={{ left: m.x, top: m.y }}
-              >
-                {/* Visual marker point */}
-                <div
-                  className="w-3.5 h-3.5 rounded-full flex items-center justify-center relative cursor-pointer group"
-                  onClick={() => m.type === "child" && handleCaseSelect(m.details)}
-                >
-                  <span
-                    className="absolute inset-0 rounded-full animate-ping opacity-60"
-                    style={{ backgroundColor: m.color }}
-                  ></span>
-                  <span
-                    className="w-2 h-2 rounded-full"
-                    style={{ backgroundColor: m.color }}
-                  ></span>
-
-                  {/* High-end micro tooltip */}
-                  <div className="absolute bottom-5 hidden group-hover:block bg-slate-950/95 border border-emerald-500/30 p-2 rounded-lg shadow-xl text-[10px] text-white min-w-[120px]">
-                    <p className="font-black">{m.name}</p>
-                    <p className="text-[8px] font-mono opacity-80 uppercase mt-0.5">{m.id}</p>
-                  </div>
+        <div className={`absolute inset-0 z-0 ${highContrast ? "bg-black" : "bg-[#050a12]"}`}>
+          <Globe
+            ref={globeRef}
+            globeImageUrl="//unpkg.com/three-globe/example/img/earth-dark.jpg"
+            bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
+            backgroundImageUrl="//unpkg.com/three-globe/example/img/night-sky.png"
+            htmlElementsData={mapData}
+            htmlElement={(d: any) => {
+              const el = document.createElement('div');
+              el.innerHTML = `
+                <div style="transform: translate(-50%, -50%); cursor: pointer; text-align: center;">
+                  <div style="background: ${d.color}; width: ${d.size * 10}px; height: ${d.size * 10}px; border-radius: 50%; box-shadow: 0 0 10px ${d.color}; border: 1px solid white;"></div>
+                  <span style="color: white; font-size: 10px; font-weight: bold; background: rgba(0,0,0,0.6); padding: 2px 4px; border-radius: 4px; display: block; margin-top: 4px;">${d.name}</span>
                 </div>
-              </div>
-            );
-          })}
+              `;
+              el.onclick = () => {
+                if (d.type === 'case') {
+                  setSelectedCase(d);
+                  setAiRecs([
+                    `FOCUS SHIFT: Re-analyzing geospatial perimeter for ${d.name}...`,
+                    `DEPLOYMENT: Recommend redirecting ${d.assignedTeam} to ${d.lat.toFixed(2)}, ${d.lon.toFixed(2)}.`
+                  ]);
+                  addToast(`Selected case ${d.name}`, "info");
+                }
+              };
+              return el;
+            }}
+          />
         </div>
+      </div>
 
         {/* 3. LEFT COLUMN: SATELLITE RADAR TARGET LOCKS */}
         <div className="absolute left-6 top-20 z-15 bg-slate-950/80 backdrop-blur-xl border border-emerald-500/15 rounded-2xl p-4 shadow-2xl max-w-xs w-full hidden xl:flex flex-col max-h-[380px]">
@@ -1171,7 +778,5 @@ export default function OperationsGlobeView({
         </div>
 
       </div>
-
-    </div>
   );
 }

@@ -7,6 +7,11 @@ const missionSchema = new mongoose.Schema({
     area: { type: String, required: true },
     progress: { type: Number, required: true },
     status: { type: String, enum: ['Active', 'Pending', 'Completed'], required: true },
+    coordinates: {
+        lat: { type: Number },
+        lng: { type: Number }
+    },
+    assignedTeam: { type: String },
     logs: [{ type: String }]
 }, { timestamps: true });
 

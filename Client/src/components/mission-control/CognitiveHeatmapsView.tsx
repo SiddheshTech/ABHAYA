@@ -44,6 +44,18 @@ import {
 import { useToastStore, useMissionStore } from "../../lib/store";
 import { useApiStore } from "../../lib/apiStore";
 import { useMissionStore as useLocalMissionStore } from "../../lib/missionStore";
+import { MapContainer, TileLayer, Circle, CircleMarker, Polyline, Tooltip, useMap } from "react-leaflet";
+import "leaflet/dist/leaflet.css";
+import { io } from "socket.io-client";
+
+// Fix Leaflet marker icons issue in React
+import L from 'leaflet';
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+});
 
 // Types
 interface CaseRecord {
@@ -51,7 +63,7 @@ interface CaseRecord {
   name: string;
   guardian: string;
   missionId: string;
-  coords: { x: number; y: number };
+  coords: { lat: number; lng: number };
   gpsLabel: string;
   region: string;
   incidentType: string;
@@ -64,16 +76,16 @@ interface CaseRecord {
 interface Landmark {
   name: string;
   type: "Safe Zone" | "Danger Area" | "Attraction Point";
-  x: number;
-  y: number;
+  lat: number;
+  lng: number;
 }
 
 interface SearchTeam {
   id: string;
   name: string;
   type: "Drone" | "Police" | "NGO";
-  x: number;
-  y: number;
+  lat: number;
+  lng: number;
   color: string;
   status: string;
   assignedZone?: string;
@@ -97,15 +109,6 @@ interface CustomParams {
 
 // Dynamic cases registry will be generated inside the component
 
-const LANDMARKS: Landmark[] = [
-  { name: "Sankalp Safe Shelter", type: "Safe Zone", x: 800, y: 400 },
-  { name: "Abhaya Quiet Center", type: "Safe Zone", x: 580, y: 580 },
-  { name: "Deep Water Canal", type: "Danger Area", x: 320, y: 250 },
-  { name: "Highway Interchange", type: "Danger Area", x: 120, y: 200 },
-  { name: "Railway Station Hub", type: "Attraction Point", x: 180, y: 750 },
-  { name: "Central Park Playground", type: "Attraction Point", x: 550, y: 550 },
-];
-
 export default function CognitiveHeatmapsView({ highContrast }: { highContrast?: boolean }) {
   const { addToast } = useToastStore();
 
@@ -118,7 +121,7 @@ export default function CognitiveHeatmapsView({ highContrast }: { highContrast?:
       name: c.name || "Unknown",
       guardian: c.guardianName || "Unknown",
       missionId: "MSN-XXX",
-      coords: { x: 500 + (Math.random()*40-20), y: 500 + (Math.random()*40-20) }, // Approximate mapped coords
+      coords: { lat: 19.0760 + (Math.random()*0.02-0.01), lng: 72.8777 + (Math.random()*0.02-0.01) }, // Approximate mapped coords
       gpsLabel: c.lastSeenLocation || "Unknown",
       region: "Sector",
       incidentType: c.status || "Missing",
@@ -179,36 +182,74 @@ export default function CognitiveHeatmapsView({ highContrast }: { highContrast?:
   // Canvas interactive offsets
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [zoom, setZoom] = useState(0.85);
-  const [panX, setPanX] = useState(60);
-  const [panY, setPanY] = useState(10);
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const [lastSeen, setLastSeen] = useState({ x: 500, y: 500 });
-  const [isDraggingMarker, setIsDraggingMarker] = useState(false);
-
-  // Drawing tools
+  const [lastSeen, setLastSeen] = useState({ lat: 19.0760, lng: 72.8777 });
   const [isDrawingMode, setIsDrawingMode] = useState(false);
-  const [drawnZones, setDrawnZones] = useState<{ x: number; y: number; radius: number; label: string }[]>([]);
-  const [drawStart, setDrawStart] = useState<{ x: number; y: number } | null>(null);
-  const [drawCurrent, setDrawCurrent] = useState<{ x: number; y: number } | null>(null);
+  const [drawnZones, setDrawnZones] = useState<{ lat: number; lng: number; radius: number; label: string }[]>([]);
 
   // Real-time Event simulation
   const [simulationTime, setSimulationTime] = useState(0); // 0 to 100% along path
   const [isSimulating, setIsSimulating] = useState(false);
   const [simulationSpeed, setSimulationSpeed] = useState(1); // 1x, 2x, 4x
 
-  // Search teams deployments mapped from dynamic store
-  const searchTeams = React.useMemo<SearchTeam[]>(() => {
-    return teams.map(t => ({
-      id: t.id,
-      name: t.name,
-      type: t.type === "drone" ? "Drone" : "Police",
-      x: 300 + (t.location.lat % 1) * 1000,
-      y: 300 + (t.location.lng % 1) * 1000,
-      color: t.type === "drone" ? "#06b6d4" : "#ef4444",
-      status: t.status,
-    }));
-  }, [teams]);
+  // State variables for backend data
+  const [searchTeams, setSearchTeams] = useState<SearchTeam[]>([]);
+  const [landmarks, setLandmarks] = useState<Landmark[]>([]);
+  const [heatmapBlobs, setHeatmapBlobs] = useState<any[]>([]);
+  const [predictedPath, setPredictedPath] = useState<{lat: number, lng: number}[]>([]);
+  const [explanations, setExplanations] = useState<any[]>([]);
+
+  // Connect to Mission Control Websocket
+  useEffect(() => {
+    const socket = io("/api/mission", { path: "/socket.io" });
+    
+    socket.on("update", (msg: { type: string, data: any[] }) => {
+      if (msg.type === "teams" || msg.type === "drones") {
+        setSearchTeams(prev => {
+          const others = prev.filter(p => !msg.data.find((m:any) => m.teamId === p.id && (msg.type === "teams" ? p.type !== "Drone" : p.type === "Drone")));
+          const updated = msg.data.map((t: any) => ({
+            id: t.teamId,
+            name: t.teamId,
+            type: msg.type === "teams" ? "Police" : "Drone",
+            lat: t.location?.lat || 19.0760,
+            lng: t.location?.lng || 72.8777,
+            color: msg.type === "teams" ? "#ef4444" : "#06b6d4",
+            status: t.status
+          }));
+          return [...others, ...updated];
+        });
+      }
+    });
+
+    return () => { socket.disconnect(); };
+  }, []);
+
+  // Fetch Cognitive Map from Psychology Search
+  useEffect(() => {
+    const fetchCognitiveMap = async () => {
+      try {
+        const res = await fetch("/api/psych/v1/search/cognitive-map", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            center_lat: lastSeen.lat,
+            center_lng: lastSeen.lng,
+            radius_km: getSearchRadiusMeters(activeProfile) / 1000,
+            child_profile: activeProfile
+          })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setLandmarks(data.landmarks || []);
+          setHeatmapBlobs(data.heatmaps || []);
+          setPredictedPath(data.predicted_path || []);
+          setExplanations(data.explanations || []);
+        }
+      } catch (err) {
+        console.error("Failed to fetch cognitive map", err);
+      }
+    };
+    fetchCognitiveMap();
+  }, [lastSeen, activeProfile]);
 
   // Timeline real-time feeds
   const [timeline, setTimeline] = useState([
@@ -270,7 +311,7 @@ export default function CognitiveHeatmapsView({ highContrast }: { highContrast?:
       const coordRegex = /^(-?\d+(\.\d+)?),\s*(-?\d+(\.\d+)?)$/;
       if (coordRegex.test(query)) {
         addToast("GPS search coordinates mapped directly to grid overlay", "info");
-        setLastSeen({ x: 450, y: 450 });
+        setLastSeen({ lat: parseFloat(RegExp.$1), lng: parseFloat(RegExp.$3) });
       } else {
         addToast("No active cases matched search criteria. Showing general intelligence.", "warning");
       }
@@ -318,7 +359,7 @@ export default function CognitiveHeatmapsView({ highContrast }: { highContrast?:
     const eventText = `Verified citizen sighting: near ${selectedCase.searchZone}`;
     setTimeline((prev) => [{ time: newTime, event: eventText, category: "Unit" }, ...prev]);
     // shift last seen closer to a random zone
-    setLastSeen((prev) => ({ x: prev.x + (Math.random() * 40 - 20), y: prev.y + (Math.random() * 40 - 20) }));
+    setLastSeen((prev) => ({ lat: prev.lat + (Math.random() * 0.005 - 0.0025), lng: prev.lng + (Math.random() * 0.005 - 0.0025) }));
     addToast("New live sighting added! Recalculating AI grid indices.", "success");
   };
 
@@ -334,480 +375,7 @@ export default function CognitiveHeatmapsView({ highContrast }: { highContrast?:
     }
   };
 
-  const getPredictedPathPoints = (profile: string) => {
-    const start = lastSeen;
-    switch (profile) {
-      case "Autism":
-        return [
-          start,
-          { x: start.x - 50, y: start.y - 60 },
-          { x: start.x - 120, y: start.y - 140 },
-          { x: 580, y: 580 }, // Abhaya quiet enclosure
-        ];
-      case "ADHD":
-        return [
-          start,
-          { x: start.x + 80, y: start.y - 30 },
-          { x: start.x - 40, y: start.y + 110 },
-          { x: 550, y: 550 }, // Central park
-        ];
-      case "Toddler":
-        return [
-          start,
-          { x: start.x + 10, y: start.y - 12 },
-          { x: start.x + 20, y: start.y + 15 },
-          { x: start.x + 15, y: start.y + 5 }, // tight cluster
-        ];
-      case "Runaway":
-        return [
-          start,
-          { x: start.x - 80, y: start.y + 40 },
-          { x: start.x - 180, y: start.y + 120 },
-          { x: 180, y: 750 }, // Station Terminal
-        ];
-      case "Special Needs":
-        return [
-          start,
-          { x: start.x + 90, y: start.y - 30 },
-          { x: 800, y: 400 }, // Safe shelter
-        ];
-      default:
-        // Build custom path towards designated target
-        const targetX = customParams.favoriteLocation.includes("Train") ? 180 : 800;
-        const targetY = customParams.favoriteLocation.includes("Train") ? 750 : 400;
-        return [
-          start,
-          { x: (start.x + targetX) / 2, y: (start.y + targetY) / 2 },
-          { x: targetX, y: targetY },
-        ];
-    }
-  };
 
-  const getHeatmapBlobs = (profile: string) => {
-    const start = lastSeen;
-    switch (profile) {
-      case "Autism":
-        return [
-          { x: start.x - 40, y: start.y - 50, radius: 90, r: 168, g: 85, b: 247, intensity: 0.8 },
-          { x: 320, y: 250, radius: 130, r: 59, g: 130, b: 246, intensity: 0.95 }, // deep water canal attraction
-          { x: 580, y: 580, radius: 100, r: 16, g: 185, b: 129, intensity: 0.7 }, // safe enclosure
-        ];
-      case "ADHD":
-        return [
-          { x: start.x + 60, y: start.y - 20, radius: 120, r: 168, g: 85, b: 247, intensity: 0.65 },
-          { x: 550, y: 550, radius: 140, r: 234, g: 179, b: 8, intensity: 0.8 }, // central park
-          { x: 120, y: 200, radius: 130, r: 239, g: 68, b: 68, intensity: 0.6 }, // high danger highway
-        ];
-      case "Toddler":
-        return [
-          { x: start.x, y: start.y, radius: 70, r: 168, g: 85, b: 247, intensity: 0.98 }, // extremely tight
-          { x: start.x + 15, y: start.y + 15, radius: 50, r: 239, g: 68, b: 68, intensity: 0.85 },
-        ];
-      case "Runaway":
-        return [
-          { x: start.x, y: start.y, radius: 100, r: 168, g: 85, b: 247, intensity: 0.5 },
-          { x: 180, y: 750, radius: 180, r: 168, g: 85, b: 247, intensity: 0.95 }, // Station hub attraction
-        ];
-      case "Special Needs":
-        return [
-          { x: start.x, y: start.y, radius: 95, r: 168, g: 85, b: 247, intensity: 0.7 },
-          { x: 800, y: 400, radius: 120, r: 16, g: 185, b: 129, intensity: 0.9 }, // shelter target
-        ];
-      default:
-        // Custom heatmap based on variables
-        const radius = customParams.speed * 40;
-        const color = customParams.riskLevel === "Extreme" ? { r: 239, g: 68, b: 68 } : { r: 168, g: 85, b: 247 };
-        return [
-          { x: start.x, y: start.y, radius: radius, r: color.r, g: color.g, b: color.b, intensity: 0.85 },
-        ];
-    }
-  };
-
-  const getExplanationCards = (profile: string) => {
-    switch (profile) {
-      case "Autism":
-        return [
-          { icon: Crosshair, title: "Attracted to Water", text: "High probability sensory-seeking behavior near canals.", confidence: "94%", evidence: "Matched on 14 similar cases", reasoning: "Running water frequencies mask environmental anxiety overloads." },
-          { icon: Shield, title: "Prefers Quiet Spaces", text: "Likely hiding in shadowed, non-trafficked enclosures.", confidence: "88%", evidence: "Thermal imagery archives", reasoning: "Averse to loud decibel ranges near active urban grids." },
-          { icon: Eye, title: "Likely to Hide", text: "Avoids direct verbal engagement; seeks secure corners.", confidence: "91%", evidence: "Developmental record files", reasoning: "Sensory hyper-alertness triggers defensive cover behaviors." },
-          { icon: AlertTriangle, title: "Avoids Crowded Areas", text: "Steers clear of transit lines and highway corridors.", confidence: "87%", evidence: "Sankalp GIS database", reasoning: "Crowded areas overload auditory processing capacities." },
-        ];
-      case "ADHD":
-        return [
-          { icon: Zap, title: "High Random Wander", text: "Erratic speed bursts and hyperactive pathing curves.", confidence: "74%", evidence: "CCTV tracking logs", reasoning: "Exploratory impulse triggers non-linear, unpredictable travel directions." },
-          { icon: Map, title: "Attracted to Playgrounds", text: "Climbs tall slides, fences or bright billboard grids.", confidence: "82%", evidence: "Regional search metrics", reasoning: "High visual and vestibular stimulus attracts active play nodes." },
-        ];
-      case "Toddler":
-        return [
-          { icon: Target, title: "Very Limited Radius", text: "Cannot cover long travel distances; sits down quickly.", confidence: "95%", evidence: "Pediatric mobility charts", reasoning: "Physical stride limitation locks potential radius under 1km." },
-          { icon: AlertTriangle, title: "High Water & Road Danger", text: "Draws near moving vehicles or water slides blindly.", confidence: "98%", evidence: "Critical incident annals", reasoning: "Inability to recognize physical risk parameters." },
-        ];
-      case "Runaway":
-        return [
-          { icon: Navigation, title: "Targeted Transit Flight", text: "Heads directly to bus, auto, and train terminals.", confidence: "90%", evidence: "Mission Vatsalya ledger", reasoning: "Intentional escape vectors seek transport interfaces early." },
-          { icon: Shield, title: "Avoids Police Uniforms", text: "Slinks into tunnels or side paths when officers approach.", confidence: "85%", evidence: "NGO field report database", reasoning: "Fear of apprehension steers flight towards dark tracks." },
-        ];
-      case "Special Needs":
-        return [
-          { icon: Shield, title: "Drawn to Nurturing Nodes", text: "Seeks safe shelters, volunteers, or female helpers.", confidence: "84%", evidence: "Case study registries", reasoning: "Familiarity-seeking leads to friendly assistance units." },
-          { icon: Clock, title: "Rapid Fatigue Risk", text: "Requires medical supplements or rest cycles in 6 hours.", confidence: "91%", evidence: "Hospital index metrics", reasoning: "Lower physical threshold demands quick intervention." },
-        ];
-      default:
-        return [
-          { icon: Sliders, title: "Custom Parameters Loaded", text: `Modeled: ${customParams.behavior}.`, confidence: "80%", evidence: "Dynamic AI weight matrix", reasoning: `Simulating tailored response for ${customParams.age}-year-old applicant.` },
-        ];
-    }
-  };
-
-  const getRecommendations = (profile: string) => {
-    switch (profile) {
-      case "Autism":
-        return { team: "Deploy Team Bravo", action: "Prioritize River Zone", radius: "1.5 km", confidence: "91%" };
-      case "ADHD":
-        return { team: "Deploy Drone Squad", action: "Prioritize Central Park", radius: "4.0 km", confidence: "74%" };
-      case "Toddler":
-        return { team: "Mobilize Local Volunteers", action: "Sweep Immediate Yards", radius: "0.8 km", confidence: "95%" };
-      case "Runaway":
-        return { team: "Dispatch Railway Patrol", action: "Secure Transit Gates", radius: "6.0 km", confidence: "89%" };
-      case "Special Needs":
-        return { team: "Deploy Nodal Medical Team", action: "Verify Sanctuary Safe Shelters", radius: "2.2 km", confidence: "84%" };
-      default:
-        return { team: "Deploy Custom Task Force", action: `Secure ${customParams.favoriteLocation}`, radius: `${(customParams.speed * 1.5).toFixed(1)} km`, confidence: "82%" };
-    }
-  };
-
-  // Canvas drawing effect
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    // Handle high DPI
-    const dpr = window.devicePixelRatio || 1;
-    const parent = canvas.parentElement;
-    if (!parent) return;
-
-    const width = parent.clientWidth;
-    const height = parent.clientHeight || 450;
-    canvas.width = width * dpr;
-    canvas.height = height * dpr;
-    canvas.style.width = `${width}px`;
-    canvas.style.height = `${height}px`;
-
-    ctx.scale(dpr, dpr);
-
-    // Drawing functions
-    const draw = () => {
-      ctx.fillStyle = highContrast ? "#0c0a09" : "#141416";
-      ctx.fillRect(0, 0, width, height);
-
-      ctx.save();
-      ctx.translate(panX, panY);
-      ctx.scale(zoom, zoom);
-
-      // Grid Lines
-      if (layers.terrain) {
-        ctx.strokeStyle = highContrast ? "rgba(254, 240, 138, 0.08)" : "rgba(255, 255, 255, 0.04)";
-        ctx.lineWidth = 1;
-        for (let x = -1000; x < 2000; x += 60) {
-          ctx.beginPath(); ctx.moveTo(x, -1000); ctx.lineTo(x, 2000); ctx.stroke();
-        }
-        for (let y = -1000; y < 2000; y += 60) {
-          ctx.beginPath(); ctx.moveTo(-1000, y); ctx.lineTo(2000, y); ctx.stroke();
-        }
-
-        // River / Water Canal
-        ctx.strokeStyle = "rgba(59, 130, 246, 0.22)";
-        ctx.lineWidth = 26;
-        ctx.lineCap = "round";
-        ctx.beginPath();
-        ctx.moveTo(100, 250);
-        ctx.bezierCurveTo(350, 270, 420, 180, 720, 220);
-        ctx.stroke();
-
-        // Railway Track
-        ctx.strokeStyle = "rgba(120, 113, 108, 0.35)";
-        ctx.lineWidth = 5;
-        ctx.beginPath();
-        ctx.moveTo(80, 800);
-        ctx.lineTo(920, 310);
-        ctx.stroke();
-      }
-
-      // Heatmap layer
-      if (layers.heatmap) {
-        const blobs = getHeatmapBlobs(activeProfile);
-        blobs.forEach((b) => {
-          const radial = ctx.createRadialGradient(b.x, b.y, 5, b.x, b.y, b.radius);
-          const mult = 1 + 0.06 * Math.sin(Date.now() / 320);
-          radial.addColorStop(0, `rgba(${b.r}, ${b.g}, ${b.b}, ${b.intensity * 0.45})`);
-          radial.addColorStop(0.4, `rgba(${b.r}, ${b.g}, ${b.b}, ${b.intensity * 0.2})`);
-          radial.addColorStop(1, `rgba(${b.r}, ${b.g}, ${b.b}, 0)`);
-          ctx.fillStyle = radial;
-          ctx.beginPath();
-          ctx.arc(b.x, b.y, b.radius * mult, 0, Math.PI * 2);
-          ctx.fill();
-        });
-      }
-
-      // Search Radius Boundary
-      if (layers.radius) {
-        const rad = getSearchRadiusMeters(activeProfile) * 1.5;
-        ctx.strokeStyle = highContrast ? "#eab308" : "#9333ea";
-        ctx.lineWidth = 2;
-        ctx.setLineDash([5, 5]);
-        ctx.beginPath();
-        ctx.arc(lastSeen.x, lastSeen.y, rad, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.setLineDash([]);
-        ctx.fillStyle = "rgba(147, 51, 234, 0.02)";
-        ctx.fill();
-      }
-
-      // Predicted Paths
-      if (layers.predictedPath) {
-        const path = getPredictedPathPoints(activeProfile);
-        if (path.length > 1) {
-          ctx.strokeStyle = "rgba(147, 51, 234, 0.65)";
-          ctx.lineWidth = 3;
-          ctx.setLineDash([6, 6]);
-          ctx.beginPath();
-          ctx.moveTo(path[0].x, path[0].y);
-          for (let i = 1; i < path.length; i++) ctx.lineTo(path[i].x, path[i].y);
-          ctx.stroke();
-          ctx.setLineDash([]);
-
-          // Moving arrows along path
-          const offset = (Date.now() / 30) % 30;
-          ctx.strokeStyle = "#c084fc";
-          ctx.lineWidth = 3;
-          ctx.setLineDash([3, 27]);
-          ctx.lineDashOffset = -offset;
-          ctx.beginPath();
-          ctx.moveTo(path[0].x, path[0].y);
-          for (let i = 1; i < path.length; i++) ctx.lineTo(path[i].x, path[i].y);
-          ctx.stroke();
-          ctx.setLineDash([]);
-        }
-      }
-
-      // User drawn zones
-      drawnZones.forEach((z) => {
-        ctx.strokeStyle = "#eab308";
-        ctx.fillStyle = "rgba(234, 179, 8, 0.15)";
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(z.x, z.y, z.radius, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.stroke();
-
-        ctx.fillStyle = "#facc15";
-        ctx.font = "bold 10px monospace";
-        ctx.textAlign = "center";
-        ctx.fillText(z.label, z.x, z.y - z.radius - 5);
-      });
-
-      // Landmarks
-      if (layers.landmarks) {
-        LANDMARKS.forEach((l) => {
-          let col = "#3b82f6";
-          if (l.type === "Safe Zone") col = "#10b981";
-          if (l.type === "Danger Area") col = "#ef4444";
-
-          ctx.fillStyle = col + "20";
-          ctx.beginPath(); ctx.arc(l.x, l.y, 20, 0, Math.PI * 2); ctx.fill();
-
-          ctx.fillStyle = col;
-          ctx.beginPath(); ctx.arc(l.x, l.y, 6, 0, Math.PI * 2); ctx.fill();
-
-          ctx.strokeStyle = "#ffffff";
-          ctx.lineWidth = 1;
-          ctx.beginPath(); ctx.arc(l.x, l.y, 6, 0, Math.PI * 2); ctx.stroke();
-
-          ctx.fillStyle = "#e2e8f0";
-          ctx.font = "bold 9px system-ui";
-          ctx.textAlign = "center";
-          ctx.fillText(l.name, l.x, l.y + 16);
-        });
-      }
-
-      // Active units / teams
-      if (layers.activeUnits) {
-        searchTeams.forEach((team) => {
-          const pulse = 1 + 0.1 * Math.sin(Date.now() / 200 + team.id.charCodeAt(0));
-          ctx.fillStyle = team.color + "25";
-          ctx.beginPath(); ctx.arc(team.x, team.y, 18 * pulse, 0, Math.PI * 2); ctx.fill();
-
-          ctx.fillStyle = team.color;
-          ctx.beginPath(); ctx.arc(team.x, team.y, 6, 0, Math.PI * 2); ctx.fill();
-
-          ctx.strokeStyle = "#ffffff";
-          ctx.lineWidth = 1.2;
-          ctx.beginPath(); ctx.arc(team.x, team.y, 6, 0, Math.PI * 2); ctx.stroke();
-
-          // Sweep cone for Drones
-          if (team.type === "Drone") {
-            const angle = (Date.now() / 1200) % (Math.PI * 2);
-            ctx.fillStyle = "rgba(6, 182, 212, 0.05)";
-            ctx.strokeStyle = "rgba(6, 182, 212, 0.18)";
-            ctx.beginPath();
-            ctx.moveTo(team.x, team.y);
-            ctx.arc(team.x, team.y, 65, angle - 0.3, angle + 0.3);
-            ctx.closePath();
-            ctx.fill(); ctx.stroke();
-          }
-
-          ctx.fillStyle = "#ffffff";
-          ctx.font = "8px monospace";
-          ctx.textAlign = "center";
-          ctx.fillText(team.name, team.x, team.y - 10);
-        });
-      }
-
-      // Active simulation route positioning
-      if (layers.movementTrails) {
-        const pathPoints = getPredictedPathPoints(activeProfile);
-        const ptIndex = Math.min(Math.floor((simulationTime / 100) * pathPoints.length), pathPoints.length - 1);
-        const currentSimPos = pathPoints[ptIndex] || lastSeen;
-
-        // Draw trail dots
-        ctx.fillStyle = "rgba(168, 85, 247, 0.4)";
-        for (let i = 0; i <= ptIndex; i++) {
-          if (pathPoints[i]) {
-            ctx.beginPath(); ctx.arc(pathPoints[i].x, pathPoints[i].y, 3.5, 0, Math.PI * 2); ctx.fill();
-          }
-        }
-
-        // Active sweep point
-        const activePulse = 1 + 0.15 * Math.sin(Date.now() / 150);
-        ctx.strokeStyle = "#ef4444";
-        ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.arc(currentSimPos.x, currentSimPos.y, 11 * activePulse, 0, Math.PI * 2); ctx.stroke();
-
-        ctx.fillStyle = "#ef4444";
-        ctx.beginPath(); ctx.arc(currentSimPos.x, currentSimPos.y, 4.5, 0, Math.PI * 2); ctx.fill();
-
-        ctx.fillStyle = "#ffffff";
-        ctx.font = "bold 8px monospace";
-        ctx.fillText("SIMULATED TARGET", currentSimPos.x, currentSimPos.y - 15);
-      } else {
-        // Just standard Last Seen Marker
-        const pulse = 1 + 0.1 * Math.sin(Date.now() / 250);
-        ctx.strokeStyle = "#ef4444";
-        ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.arc(lastSeen.x, lastSeen.y, 10 * pulse, 0, Math.PI * 2); ctx.stroke();
-
-        ctx.fillStyle = "#ef4444";
-        ctx.beginPath(); ctx.arc(lastSeen.x, lastSeen.y, 4, 0, Math.PI * 2); ctx.fill();
-
-        ctx.fillStyle = "#ffffff";
-        ctx.font = "bold 9px system-ui";
-        ctx.textAlign = "center";
-        ctx.fillText("LAST SEEN POINT", lastSeen.x, lastSeen.y - 14);
-      }
-
-      // Live drawing shape feedback
-      if (isDrawingMode && drawStart && drawCurrent) {
-        const r = Math.sqrt(Math.pow(drawCurrent.x - drawStart.x, 2) + Math.pow(drawCurrent.y - drawStart.y, 2));
-        ctx.strokeStyle = "#eab308";
-        ctx.fillStyle = "rgba(234, 179, 8, 0.12)";
-        ctx.lineWidth = 2;
-        ctx.setLineDash([4, 4]);
-        ctx.beginPath(); ctx.arc(drawStart.x, drawStart.y, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-        ctx.setLineDash([]);
-      }
-
-      ctx.restore();
-    };
-
-    let animationId: number;
-    const tick = () => {
-      draw();
-      animationId = requestAnimationFrame(tick);
-    };
-    tick();
-
-    return () => cancelAnimationFrame(animationId);
-  }, [zoom, panX, panY, activeProfile, lastSeen, layers, drawnZones, isDrawingMode, drawStart, drawCurrent, simulationTime, searchTeams]);
-
-  // Map mouse handlers
-  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
-    const clickY = e.clientY - rect.top;
-
-    const mapX = (clickX - panX) / zoom;
-    const mapY = (clickY - panY) / zoom;
-
-    // Check click on Last Seen marker to allow dragging
-    const distToMarker = Math.sqrt(Math.pow(mapX - lastSeen.x, 2) + Math.pow(mapY - lastSeen.y, 2));
-    if (distToMarker < 20) {
-      setIsDraggingMarker(true);
-      return;
-    }
-
-    if (isDrawingMode) {
-      setDrawStart({ x: mapX, y: mapY });
-      setDrawCurrent({ x: mapX, y: mapY });
-    } else {
-      setIsDragging(true);
-      setDragStart({ x: e.clientX - panX, y: e.clientY - panY });
-    }
-  };
-
-  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    if (isDraggingMarker) {
-      const rect = canvas.getBoundingClientRect();
-      const clickX = e.clientX - rect.left;
-      const clickY = e.clientY - rect.top;
-      setLastSeen({
-        x: Math.round((clickX - panX) / zoom),
-        y: Math.round((clickY - panY) / zoom),
-      });
-      return;
-    }
-
-    if (isDragging) {
-      setPanX(e.clientX - dragStart.x);
-      setPanY(e.clientY - dragStart.y);
-    } else if (isDrawingMode && drawStart) {
-      const rect = canvas.getBoundingClientRect();
-      const clickX = e.clientX - rect.left;
-      const clickY = e.clientY - rect.top;
-      setDrawCurrent({
-        x: (clickX - panX) / zoom,
-        y: (clickY - panY) / zoom,
-      });
-    }
-  };
-
-  const handleMouseUp = () => {
-    if (isDraggingMarker) {
-      setIsDraggingMarker(false);
-      addToast("Last Seen benchmark moved. Recalculating route metrics.", "info");
-    }
-    setIsDragging(false);
-
-    if (isDrawingMode && drawStart && drawCurrent) {
-      const radius = Math.round(
-        Math.sqrt(Math.pow(drawCurrent.x - drawStart.x, 2) + Math.pow(drawCurrent.y - drawStart.y, 2))
-      );
-      if (radius > 10) {
-        const label = `Zone-${drawnZones.length + 1}`;
-        setDrawnZones((prev) => [...prev, { x: drawStart.x, y: drawStart.y, radius, label }]);
-        addToast(`Drawn tactical sector added: ${label}`, "success");
-      }
-      setDrawStart(null);
-      setDrawCurrent(null);
-      setIsDrawingMode(false);
-    }
-  };
 
   // Exporters
   const handleExportCSV = () => {
@@ -815,7 +383,7 @@ export default function CognitiveHeatmapsView({ highContrast }: { highContrast?:
       ["Case ID", selectedCase.id],
       ["Name", selectedCase.name],
       ["Default Profile", activeProfile],
-      ["Last Seen Coordinates (X, Y)", `${lastSeen.x}, ${lastSeen.y}`],
+      ["Last Seen Coordinates (Lat, Lng)", `${lastSeen.lat}, ${lastSeen.lng}`],
       ["Search Radius", getSearchRadiusMeters(activeProfile) + "m"],
       ["Calculated Risk Level", selectedCase.incidentType],
     ];
@@ -841,7 +409,7 @@ STATUS OF OPERATION: Active Field Search
 
 AI SEARCH RADIUS: ${getSearchRadiusMeters(activeProfile)} meters
 COGNITIVE BIAS LEVEL: High Sighting Propensity
-LAST SEEN MATRIX COORDS: ${lastSeen.x}, ${lastSeen.y}
+LAST SEEN MATRIX COORDS: ${lastSeen.lat}, ${lastSeen.lng}
 
 TACTICAL DEPLOYMENTS:
 - Drone Delta-1 (Corridor Scan)
@@ -867,8 +435,7 @@ COMPLIANCE AUDIT SIGN-OFF STATUS: Verified Secured Hashed Ledgers
     addToast("Comment logged in mission records.", "success");
   };
 
-  const recommendations = getRecommendations(activeProfile);
-  const explanations = getExplanationCards(activeProfile);
+  const recommendations = { team: "Deploy AI Directed Task Force", action: "Prioritize Calculated Zones", radius: "1.5 km", confidence: "90%" };
 
   return (
     <div className="flex flex-col h-full animate-in fade-in duration-300">
@@ -1177,49 +744,96 @@ COMPLIANCE AUDIT SIGN-OFF STATUS: Verified Secured Hashed Ledgers
               </span>
             </div>
 
-            {/* Interactive map controls bottom right */}
-            <div className="absolute bottom-16 right-3 z-20 flex flex-col gap-1.5">
-              <button
-                onClick={() => setZoom((prev) => Math.min(prev + 0.15, 2))}
-                className="w-8 h-8 rounded-lg bg-stone-950 hover:bg-stone-900 border border-stone-800 text-white font-bold flex items-center justify-center cursor-pointer"
+            {/* Leaflet map body */}
+            <div className="flex-1 w-full h-full relative z-0" style={{ minHeight: '400px' }}>
+              <MapContainer 
+                center={[lastSeen.lat, lastSeen.lng]} 
+                zoom={14} 
+                style={{ width: '100%', height: '100%', background: highContrast ? "#0c0a09" : "#141416" }}
+                zoomControl={true}
               >
-                +
-              </button>
-              <button
-                onClick={() => setZoom((prev) => Math.max(prev - 0.15, 0.4))}
-                className="w-8 h-8 rounded-lg bg-stone-950 hover:bg-stone-900 border border-stone-800 text-white font-bold flex items-center justify-center cursor-pointer"
-              >
-                -
-              </button>
-              <button
-                onClick={() => { setZoom(0.85); setPanX(60); setPanY(10); }}
-                className="w-8 h-8 rounded-lg bg-stone-950 hover:bg-stone-900 border border-stone-800 text-white text-[10px] font-mono flex items-center justify-center cursor-pointer"
-              >
-                RST
-              </button>
-              <button
-                onClick={() => {
-                  setIsDrawingMode(!isDrawingMode);
-                  if (!isDrawingMode) addToast("Click and drag on the map to define a custom search zone", "info");
-                }}
-                className={`w-8 h-8 rounded-lg border flex items-center justify-center cursor-pointer ${
-                  isDrawingMode ? "bg-yellow-600 text-white border-yellow-500" : "bg-stone-950 hover:bg-stone-900 border-stone-800 text-stone-400"
-                }`}
-                title="Annotate Zone"
-              >
-                <Plus className="w-4 h-4" />
-              </button>
-            </div>
+                <TileLayer
+                  url={highContrast ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"}
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+                />
+                
+                {/* Heatmaps */}
+                {layers.heatmap && heatmapBlobs.map((b, i) => (
+                  <Circle 
+                    key={`hm-${i}`}
+                    center={[b.lat, b.lng]} 
+                    radius={b.radius} 
+                    pathOptions={{ color: 'transparent', fillColor: `rgb(${b.r},${b.g},${b.b})`, fillOpacity: b.intensity * 0.4 }} 
+                  />
+                ))}
 
-            {/* Canvas map body */}
-            <div className="flex-1 w-full h-full relative cursor-grab active:cursor-grabbing">
-              <canvas
-                ref={canvasRef}
-                onMouseDown={handleMouseDown}
-                onMouseMove={handleMouseMove}
-                onMouseUp={handleMouseUp}
-                className="block w-full h-full"
-              />
+                {/* Radius Boundary */}
+                {layers.radius && (
+                  <Circle
+                    center={[lastSeen.lat, lastSeen.lng]}
+                    radius={getSearchRadiusMeters(activeProfile)}
+                    pathOptions={{ color: highContrast ? '#eab308' : '#9333ea', weight: 2, dashArray: '5, 5', fillOpacity: 0.05 }}
+                  />
+                )}
+
+                {/* Predicted Paths */}
+                {layers.predictedPath && (
+                  <Polyline 
+                    positions={predictedPath.map(p => [p.lat, p.lng])} 
+                    pathOptions={{ color: '#c084fc', weight: 3, dashArray: '6, 6' }}
+                  />
+                )}
+
+                {/* Drawn Zones */}
+                {drawnZones.map((z, i) => (
+                  <Circle key={`dz-${i}`} center={[z.lat, z.lng]} radius={z.radius} pathOptions={{ color: '#eab308', fillColor: '#eab308', fillOpacity: 0.15 }}>
+                     <Tooltip direction="top" permanent className="bg-transparent border-none text-yellow-400 font-bold text-xs shadow-none">{z.label}</Tooltip>
+                  </Circle>
+                ))}
+
+                {/* Landmarks */}
+                {layers.landmarks && landmarks.map((l, i) => (
+                  <CircleMarker 
+                    key={`lm-${i}`}
+                    center={[l.lat, l.lng]} 
+                    radius={8} 
+                    pathOptions={{ color: '#fff', weight: 1, fillColor: l.type === 'Safe Zone' ? '#10b981' : l.type === 'Danger Area' ? '#ef4444' : '#3b82f6', fillOpacity: 1 }}
+                  >
+                    <Tooltip direction="bottom" offset={[0, 10]} permanent className="bg-transparent border-none text-gray-200 font-bold text-xs shadow-none">
+                      {l.name}
+                    </Tooltip>
+                  </CircleMarker>
+                ))}
+
+                {/* Active Units */}
+                {layers.activeUnits && searchTeams.map(t => (
+                  <CircleMarker 
+                    key={`t-${t.id}`}
+                    center={[t.lat, t.lng]}
+                    radius={8}
+                    pathOptions={{ color: '#fff', weight: 1.2, fillColor: t.color, fillOpacity: 1 }}
+                  >
+                    <Tooltip direction="top" offset={[0, -10]} permanent className="bg-transparent border-none text-white font-bold text-[10px] shadow-none">
+                      {t.name}
+                    </Tooltip>
+                  </CircleMarker>
+                ))}
+
+                {/* Last Seen or Simulated Target */}
+                <CircleMarker
+                  center={layers.movementTrails && predictedPath.length > 0 ? [
+                    predictedPath[Math.min(Math.floor((simulationTime / 100) * predictedPath.length), Math.max(0, predictedPath.length - 1))]?.lat || lastSeen.lat,
+                    predictedPath[Math.min(Math.floor((simulationTime / 100) * predictedPath.length), Math.max(0, predictedPath.length - 1))]?.lng || lastSeen.lng
+                  ] : [lastSeen.lat, lastSeen.lng]}
+                  radius={6}
+                  pathOptions={{ color: '#ef4444', weight: 2, fillColor: '#ef4444', fillOpacity: 1 }}
+                >
+                  <Tooltip direction="bottom" offset={[0, 10]} permanent className="bg-transparent border-none text-red-500 font-bold text-[10px] shadow-none">
+                    {layers.movementTrails && predictedPath.length > 0 ? "SIMULATED TARGET" : "LAST SEEN POINT"}
+                  </Tooltip>
+                </CircleMarker>
+
+              </MapContainer>
             </div>
 
             {/* Map bottom bar: Simulation slider timeline */}
@@ -1322,7 +936,7 @@ COMPLIANCE AUDIT SIGN-OFF STATUS: Verified Secured Hashed Ledgers
 
               <div className="space-y-2">
                 {explanations.map((exp, i) => {
-                  const Icon = exp.icon;
+                  const Icon = AlertTriangle; // Use fallback icon since backend does not return one
                   return (
                     <div key={i} className="p-2.5 bg-stone-950/60 border border-stone-850/60 rounded-xl space-y-1.5">
                       <div className="flex items-start justify-between gap-1">
@@ -1331,10 +945,10 @@ COMPLIANCE AUDIT SIGN-OFF STATUS: Verified Secured Hashed Ledgers
                           <h5 className="font-bold text-xs text-stone-200">{exp.title}</h5>
                         </div>
                         <span className="text-[9px] font-mono text-emerald-400 bg-emerald-950/20 border border-emerald-900/30 px-1.5 py-0.25 rounded shrink-0">
-                          {exp.confidence} Conf.
+                          {exp.confidence}
                         </span>
                       </div>
-                      <p className="text-[10px] text-stone-400 leading-relaxed">{exp.text}</p>
+                      <p className="text-[10px] text-stone-400 leading-relaxed">{exp.summary}</p>
                       
                       <div className="pt-1.5 border-t border-stone-900/60 text-[9px] font-mono text-stone-500 leading-normal">
                         <p><span className="text-stone-450 font-semibold">Evidence:</span> {exp.evidence}</p>
@@ -1421,7 +1035,7 @@ COMPLIANCE AUDIT SIGN-OFF STATUS: Verified Secured Hashed Ledgers
             <div className="flex flex-wrap md:flex-nowrap gap-5 items-center relative z-10 text-xs font-mono">
               <div>
                 <span className="text-[9px] font-bold uppercase text-emerald-200 block mb-0.5">Target Scope</span>
-                <span className="font-bold text-yellow-300">{selectedCase.name} ({selectedCase.id})</span>
+                <span className="font-bold text-yellow-300">{selectedCase?.name || "None"} ({selectedCase?.id || "N/A"})</span>
               </div>
               <div className="w-px h-8 bg-emerald-600/40 hidden md:block"></div>
               <div>
