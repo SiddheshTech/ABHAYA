@@ -3,8 +3,7 @@ const mongoose = require('mongoose');
 const connectDB = require('./config/db');
 const Mission = require('./models/Mission');
 const Team = require('./models/Team');
-const GridSector = require('./models/GridSector');
-const Emergency = require('./models/Emergency');
+const Drone = require('./models/Drone');
 const { addBlock, AuditBlock } = require('./services/blockchain');
 
 const seedData = async () => {
@@ -12,40 +11,31 @@ const seedData = async () => {
     console.log('Clearing old data...');
     await Mission.deleteMany();
     await Team.deleteMany();
-    await GridSector.deleteMany();
-    await Emergency.deleteMany();
+    await Drone.deleteMany();
     await AuditBlock.deleteMany();
 
     console.log('Creating Missions...');
     const mission1 = await Mission.create({
-        missionId: 'RK-204',
-        searchRadiusKm: 12,
-        coveragePercent: 74,
-        successProbability: 83,
-        recommendedDeployment: 'Sector 4',
-        coordinates: { lat: 19.0760, lng: 72.8777 }
+        id: 'RK-204',
+        title: 'Alpha Sector Sweep',
+        priority: 'High',
+        area: 'Sector 4',
+        progress: 74,
+        status: 'Active',
+        logs: ['Mission initiated', 'Teams deployed']
     });
 
     console.log('Creating Teams...');
     await Team.create([
-        { teamId: 'Team Alpha', type: 'Drone', status: 'Ready', batteryOrFuelLevel: 100, personnelCount: 2, coverageRadiusKm: 5 },
-        { teamId: 'Team Bravo', type: 'Ground', status: 'On Mission', batteryOrFuelLevel: 85, personnelCount: 12, coverageRadiusKm: 3 }
+        { id: 'T-01', name: 'Team Alpha', type: 'Tactical', status: 'Active', location: { lat: 19.0760, lng: 72.8777 }, battery: 100 },
+        { id: 'T-02', name: 'Team Bravo', type: 'Ground', status: 'En Route', location: { lat: 19.0780, lng: 72.8787 }, battery: 85 }
     ]);
-
-    console.log('Creating Grid Sectors...');
-    await GridSector.create([
-        { sectorId: 'Sector D', status: 'Unsearched', coveragePercent: 0, missProbability: 15, terrainDifficulty: 'High', highestProbability: true },
-        { sectorId: 'Sector A', status: 'Completed', coveragePercent: 100, missProbability: 2, terrainDifficulty: 'Low', assignedTeam: 'Team Bravo' }
+    
+    console.log('Creating Drones...');
+    await Drone.create([
+        { id: 'D-01', name: 'Eagle 1', status: 'Airborne', altitude: 400, battery: 92, location: { lat: 19.0760, lng: 72.8777 } },
+        { id: 'D-02', name: 'Falcon 9', status: 'Searching', altitude: 120, battery: 45, location: { lat: 19.0800, lng: 72.8800 } }
     ]);
-
-    console.log('Creating Emergencies...');
-    await Emergency.create({
-        emergencyId: 'EMG-001',
-        type: 'Amber Alert',
-        description: 'Kidnapping alert reported near Nashik highway.',
-        escalationLevel: 'Level 3',
-        estimatedImpact: 'High'
-    });
 
     console.log('Logging to Blockchain...');
     await addBlock({ eventType: 'Mission Initiated', eventId: mission1._id, timestamp: mission1.createdAt });

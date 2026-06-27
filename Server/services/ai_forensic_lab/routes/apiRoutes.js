@@ -3,6 +3,8 @@ const router = express.Router();
 const CriminalProfile = require('../models/CriminalProfile');
 const Prediction = require('../models/Prediction');
 const AuditLog = require('../models/AuditLog');
+const Genome = require('../models/Genome');
+const AIReconstruction = require('../models/AIReconstruction');
 const { GoogleGenAI } = require('@google/genai');
 
 let aiClient = null;
@@ -230,6 +232,14 @@ Query: "${query}"`;
     }
 });
 
+// Network Genome Routes
+router.get('/network-genomes', async (req, res) => {
+    try {
+        const genomes = await Genome.find({});
+        res.json(genomes);
+    } catch(err) { res.status(500).json({error: err.message}); }
+});
+
 router.post('/network-genome/sequence', async (req, res) => {
     try {
         const ai = getGeminiClient();
@@ -272,6 +282,14 @@ Generate 2 emerging networks, 1 mutated network, 1 rapid growth network, and 1 d
         console.error("Network Genome Sequencing error:", err);
         res.status(500).json({ error: "Failed to sequence network genome" });
     }
+});
+
+// AI Reconstruction Routes
+router.get('/reconstructions', async (req, res) => {
+    try {
+        const recons = await AIReconstruction.find({});
+        res.json(recons);
+    } catch(err) { res.status(500).json({error: err.message}); }
 });
 
 router.get('/dashboard/stats', async (req, res) => {

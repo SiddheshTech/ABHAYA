@@ -4,6 +4,7 @@ import {
   CreditCard, MapPin, Briefcase, Zap, AlertTriangle, Crosshair, 
   TrendingUp, ShieldAlert, Biohazard, ArrowUpRight, ArrowRight
 } from "lucide-react";
+import { useForensicStore } from "../lib/forensicStore";
 
 interface NetworkGenomeProps {
   highContrast?: boolean;
@@ -15,7 +16,7 @@ export default function NetworkGenome({ highContrast, showToast }: NetworkGenome
   const bgCard = highContrast ? "bg-stone-900 border-stone-800" : "bg-white border-gray-100";
   const textSecondary = highContrast ? "text-gray-400" : "text-gray-500";
 
-  // State to randomly pulse nodes
+  const { genomes, fetchForensicData } = useForensicStore();
   const [pulsingNode, setPulsingNode] = useState<number | null>(null);
   const [isSequencing, setIsSequencing] = useState(false);
   const [genomeData, setGenomeData] = useState<any>(null);
@@ -27,18 +28,26 @@ export default function NetworkGenome({ highContrast, showToast }: NetworkGenome
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    if (genomes && genomes.length > 0) {
+      // Mock formatting of genomes for the view
+      const formattedData = {
+        emerging_networks: genomes.slice(0, 2).map(g => ({ name: `Network ${g.networkId}`, description: `Mutation: ${g.mutationProbability}%`, status: g.expectedShift })),
+        mutated_networks: genomes.slice(2, 4).map(g => ({ name: `Network ${g.networkId}`, description: g.predictedExpansion })),
+        rapid_growth: genomes.slice(4, 6).map(g => ({ name: `Network ${g.networkId}`, description: `Strength: ${g.networkStrength}` })),
+        dormant_networks: genomes.slice(6, 8).map(g => ({ name: `Network ${g.networkId}`, description: g.collapsePoint }))
+      };
+      setGenomeData(formattedData);
+    }
+  }, [genomes]);
+
   const handleRunSequencing = async () => {
     setIsSequencing(true);
     if (showToast) showToast("Initiating Genome Sequencing. Analyzing structural nodes...", "info");
     
     try {
-      const response = await fetch("/api/network-genome/sequence", {
-        method: "POST"
-      });
-      if (!response.ok) throw new Error("API Failed");
-      const data = await response.json();
-      setGenomeData(data);
-      if (showToast) showToast("Sequencing complete. Found critical mutation vectors.", "success");
+      await fetchForensicData();
+      if (showToast) showToast("Sequencing complete. Fetched live network genomes.", "success");
     } catch (error) {
       console.error("Sequencing failed:", error);
       if (showToast) showToast("Genome sequencing failed to connect.", "error");
