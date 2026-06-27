@@ -19,6 +19,10 @@ connectDB().then(async () => {
     const Organization = require('./models/Organization');
     const Recovery = require('./models/Recovery');
     const MajorCase = require('./models/MajorCase');
+<<<<<<< HEAD
+    const AIModel = require('./models/AIModel');
+    const AuditEvent = require('./models/AuditEvent');
+=======
     
     // Knowledge Vault models
     const KnowledgeNode = require('./models/KnowledgeNode');
@@ -28,24 +32,44 @@ connectDB().then(async () => {
     const FavoriteCase = require('./models/FavoriteCase');
     const Watchlist = require('./models/Watchlist');
     const AISuggestion = require('./models/AISuggestion');
+>>>>>>> 92a5d025542300c3144820f73fc8505378fdae42
 
     const count = await State.countDocuments();
     if (count === 0) {
         console.log("Seeding initial data...");
         await State.insertMany([
-            { name: 'Maharashtra', missingCases: 150, recoveredCases: 138, networksDetected: 4, riskIndex: 'High Risk', activeOperations: 12, coordinates: { lat: 19.75, lng: 75.71 } },
-            { name: 'Assam', missingCases: 80, recoveredCases: 45, networksDetected: 2, riskIndex: 'Emergency', activeOperations: 8, coordinates: { lat: 26.20, lng: 92.93 } },
-            { name: 'Delhi-NCR', missingCases: 200, recoveredCases: 195, networksDetected: 6, riskIndex: 'Safe', activeOperations: 18, coordinates: { lat: 28.61, lng: 77.20 } }
+            { name: "Delhi-NCR", missingCases: 14, recoveredCases: 1420, networksDetected: 3, riskIndex: "Low (12/100)", activeOperations: 2, coordinates: { lat: 28.61, lng: 77.20 } },
+            { name: "Maharashtra", missingCases: 42, recoveredCases: 1240, networksDetected: 8, riskIndex: "Medium (58/100)", activeOperations: 4, coordinates: { lat: 19.75, lng: 75.71 } },
+            { name: "Karnataka", missingCases: 18, recoveredCases: 890, networksDetected: 4, riskIndex: "Low (24/100)", activeOperations: 1, coordinates: { lat: 15.31, lng: 75.71 } },
+            { name: "Uttar Pradesh", missingCases: 94, recoveredCases: 1840, networksDetected: 12, riskIndex: "High (89/100)", activeOperations: 8, coordinates: { lat: 26.84, lng: 80.94 } },
+            { name: "West Bengal", missingCases: 51, recoveredCases: 980, networksDetected: 6, riskIndex: "High (74/100)", activeOperations: 3, coordinates: { lat: 22.98, lng: 87.85 } },
+            { name: "Tamil Nadu", missingCases: 12, recoveredCases: 1040, networksDetected: 2, riskIndex: "Low (18/100)", activeOperations: 1, coordinates: { lat: 11.12, lng: 78.65 } },
+            { name: "Bihar", missingCases: 68, recoveredCases: 620, networksDetected: 9, riskIndex: "High (82/100)", activeOperations: 5, coordinates: { lat: 25.09, lng: 85.31 } },
+            { name: "Assam", missingCases: 39, recoveredCases: 410, networksDetected: 7, riskIndex: "Critical (94/100)", activeOperations: 6, coordinates: { lat: 26.20, lng: 92.93 } }
         ]);
 
         await Network.insertMany([
-            { clusterId: 'Cluster G12 Syndicate', growthStatus: 'Expanding', kingpinsDetected: 2, affectedStates: ['Maharashtra', 'Gujarat'], threatLevel: 'Critical' },
-            { clusterId: 'Cluster G18', growthStatus: 'Stable', kingpinsDetected: 0, affectedStates: ['Assam'], threatLevel: 'Medium' }
+            { clusterId: "Cluster G12", growthStatus: "+18% this month", threatLevel: "Extreme", kingpinsDetected: 1, affectedStates: ["Bihar", "Maharashtra", "Gujarat"] },
+            { clusterId: "Cluster G18", growthStatus: "+12% this month", threatLevel: "Critical", kingpinsDetected: 1, affectedStates: ["Assam", "West Bengal"] },
+            { clusterId: "Cluster G21", growthStatus: "Stable", threatLevel: "High", kingpinsDetected: 2, affectedStates: ["Odisha", "Andhra Pradesh"] }
         ]);
 
         await Prediction.insertMany([
-            { targetState: 'Assam Borders', expectedSpike: '3 Weeks', confidenceScore: 87, riskFactors: { migrationRisk: 'High Risk' }, recommendations: [], forecastPeriod: '1 Month' },
-            { targetState: 'North Bihar Plain', expectedSpike: '2 Weeks', confidenceScore: 79, riskFactors: { migrationRisk: 'Medium Risk' }, recommendations: [], forecastPeriod: '1 Week' }
+            { targetState: 'Assam Borders', expectedSpike: 'High', confidenceScore: 87, riskFactors: { migrationRisk: 'Critical' }, recommendations: ['Deploy Allied NGOs', 'Increase Police Patrols'], forecastPeriod: '1 Month' },
+            { targetState: 'North Bihar Plain', expectedSpike: 'Medium', confidenceScore: 79, riskFactors: { migrationRisk: 'High' }, recommendations: ['Issue Community Alerts'], forecastPeriod: '1 Week' }
+        ]);
+
+        await AIModel.insertMany([
+            { name: "Identity Engine", version: "v4.2", status: "Online", accuracy: 96.4, inferencesCompleted: 18412 },
+            { name: "Network Genome", version: "v3.1", status: "Retraining", accuracy: 94.2, inferencesCompleted: 9140 },
+            { name: "Prediction Engine", version: "v2.5", status: "Online", accuracy: 91.8, inferencesCompleted: 24501 },
+            { name: "Cognitive Heatmaps", version: "v1.8", status: "Online", accuracy: 92.0, inferencesCompleted: 4200 },
+            { name: "Behavioral AI", version: "v4.0", status: "Online", accuracy: 95.5, inferencesCompleted: 11029 }
+        ]);
+
+        await AuditEvent.insertMany([
+            { eventType: "System Change", performedBy: "Auto-Sys", organizationName: "Network Genome", details: "AI Retraining Triggered", isBlockchainVerified: true, timestamp: new Date() },
+            { eventType: "Critical Event", performedBy: "Commander", organizationName: "Assam Sector-04", details: "Node Dispatch Alert", isBlockchainVerified: true, timestamp: new Date() }
         ]);
 
         await Organization.insertMany([

@@ -5,7 +5,7 @@ const stateSchema = new mongoose.Schema({
     missingCases: { type: Number, default: 0 },
     recoveredCases: { type: Number, default: 0 },
     networksDetected: { type: Number, default: 0 },
-    riskIndex: { type: String, enum: ['Safe', 'Watchlist', 'High Risk', 'Emergency'], default: 'Safe' },
+    riskIndex: { type: String, default: 'Safe' },
     activeOperations: { type: Number, default: 0 },
     coordinates: { lat: Number, lng: Number } // For Live India Grid
 }, { timestamps: true });

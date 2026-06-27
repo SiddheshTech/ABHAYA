@@ -3,8 +3,7 @@ const mongoose = require('mongoose');
 const connectDB = require('./config/db');
 const Mission = require('./models/Mission');
 const Team = require('./models/Team');
-const GridSector = require('./models/GridSector');
-const Emergency = require('./models/Emergency');
+const Drone = require('./models/Drone');
 const { addBlock, AuditBlock } = require('./services/blockchain');
 
 const seedData = async () => {
@@ -12,8 +11,7 @@ const seedData = async () => {
     console.log('Clearing old data...');
     await Mission.collection.drop().catch(() => {});
     await Team.collection.drop().catch(() => {});
-    await GridSector.collection.drop().catch(() => {});
-    await Emergency.collection.drop().catch(() => {});
+    await Drone.collection.drop().catch(() => {});
     await AuditBlock.collection.drop().catch(() => {});
 
     console.log('Creating Missions...');
@@ -75,21 +73,12 @@ const seedData = async () => {
         { id: 'TEAM-001', name: 'Team Alpha', type: 'Drone', status: 'Idle', battery: 100, location: { lat: 26.7271, lng: 88.5953 } },
         { id: 'TEAM-002', name: 'Team Bravo', type: 'Ground', status: 'Active', battery: 85, location: { lat: 27.0375, lng: 88.2627 } }
     ]);
-
-    console.log('Creating Grid Sectors...');
-    await GridSector.create([
-        { sectorId: 'Sector D', status: 'Unsearched', coveragePercent: 0, missProbability: 15, terrainDifficulty: 'High', highestProbability: true },
-        { sectorId: 'Sector A', status: 'Completed', coveragePercent: 100, missProbability: 2, terrainDifficulty: 'Low', assignedTeam: 'Team Bravo' }
+    
+    console.log('Creating Drones...');
+    await Drone.create([
+        { id: 'D-01', name: 'Eagle 1', status: 'Airborne', altitude: 400, battery: 92, location: { lat: 19.0760, lng: 72.8777 } },
+        { id: 'D-02', name: 'Falcon 9', status: 'Searching', altitude: 120, battery: 45, location: { lat: 19.0800, lng: 72.8800 } }
     ]);
-
-    console.log('Creating Emergencies...');
-    await Emergency.create({
-        emergencyId: 'EMG-001',
-        type: 'Amber Alert',
-        description: 'Kidnapping alert reported near Nashik highway.',
-        escalationLevel: 'Level 3',
-        estimatedImpact: 'High'
-    });
 
     console.log('Logging to Blockchain...');
     await addBlock({ eventType: 'Mission Initiated', eventId: missions[0]._id, timestamp: missions[0].createdAt });

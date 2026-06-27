@@ -18,6 +18,7 @@ import PredictionEngine from "./PredictionEngine";
 import IntelligenceArchive from "./IntelligenceArchive";
 import SettingsPage from "./SettingsPage";
 import HelpPage from "./HelpPage";
+import { useForensicStore } from "../lib/forensicStore";
 
 interface AIForensicDashboardProps {
   onLogout: () => void;
@@ -42,17 +43,11 @@ export default function AIForensicDashboard({ onLogout, highContrast }: AIForens
   const [copilotResponse, setCopilotResponse] = useState("");
   const [isExporting, setIsExporting] = useState(false);
   const [isInitializingTask, setIsInitializingTask] = useState(false);
-  const [dashboardStats, setDashboardStats] = useState<any>(null);
+  const { dashboardStats, fetchForensicData } = useForensicStore();
 
   useEffect(() => {
-    const fetchStats = () => {
-      fetch("/api/dashboard/stats")
-        .then(r => r.json())
-        .then(data => setDashboardStats(data))
-        .catch(console.error);
-    };
-    fetchStats();
-    const interval = setInterval(fetchStats, 15000);
+    fetchForensicData();
+    const interval = setInterval(fetchForensicData, 15000);
     return () => clearInterval(interval);
   }, []);
 

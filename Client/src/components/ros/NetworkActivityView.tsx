@@ -3,6 +3,7 @@ import {
   GitBranch, ShieldAlert, Zap, Orbit, Search, User, Compass, HelpCircle, 
   MapPin, ShieldCheck, AlertCircle, Info, RefreshCw 
 } from "lucide-react";
+import { useRosStore } from "../../lib/rosStore";
 
 interface NetworkActivityViewProps {
   highContrast?: boolean;
@@ -18,47 +19,25 @@ export default function NetworkActivityView({ highContrast }: NetworkActivityVie
   const textMain = highContrast ? "text-yellow-300" : "text-white";
   const textMuted = highContrast ? "text-stone-400" : "text-stone-400 font-mono text-[11px]";
 
-  // Immersive cluster dataset
-  const clusters = [
-    {
-      id: "Cluster G12",
-      name: "Sankalp Transit Ring (G12)",
-      nodes: 24,
-      kingpin: "Alias: 'Ustad' Syndicate",
-      expansion: "Pune & Ahmedabad Junctions",
-      growth: "+18% this month",
-      threat: "Extreme (High biometric matching hitrate)",
-      statesAffected: "Bihar, Maharashtra, Gujarat",
-      recentActivity: "Sighted in transit near Indore sleeper lines",
-      galaxyCoords: { cx: 200, cy: 180, r: 24 }
-    },
-    {
-      id: "Cluster G18",
-      name: "Highway Border Alliance (G18)",
-      nodes: 15,
-      kingpin: "Alias: 'The Broker' Syndicate",
-      expansion: "Dhubri & Siliguri Corridors",
-      growth: "+12% this month",
-      threat: "Critical (Child trafficking via tea estates)",
-      statesAffected: "Assam, West Bengal",
-      recentActivity: "Biometric duplicates flagged at Nabadwip crossing",
-      galaxyCoords: { cx: 350, cy: 120, r: 18 }
-    },
-    {
-      id: "Cluster G21",
-      name: "Coastal Rail Network (G21)",
-      nodes: 9,
-      kingpin: "Alias: 'Amma' Syndicate",
-      expansion: "Chennai & Madurai Terminal Hubs",
-      growth: "Stable",
-      threat: "Medium (Urban domestic servitude transit)",
-      statesAffected: "Tamil Nadu, Andhra Pradesh",
-      recentActivity: "NGO child welfare alert raised in Madurai station",
-      galaxyCoords: { cx: 150, cy: 300, r: 14 }
-    }
-  ];
+  const { networks } = useRosStore();
 
-  const activeCluster = clusters.find(c => c.id === selectedCluster) || clusters[0];
+  // Dynamic cluster dataset mapped from backend
+  const clusters = networks.map((net, idx) => ({
+    id: net.clusterId,
+    name: `${net.clusterId} Syndicate`,
+    nodes: Math.floor(Math.random() * 20) + 5,
+    kingpin: "Unknown Status",
+    expansion: "Regional Rail Hubs",
+    growth: net.growthStatus,
+    threat: net.threatLevel,
+    statesAffected: "Multiple Zones",
+    recentActivity: "Last sighted near major transit junction",
+    galaxyCoords: { cx: 150 + (idx * 100), cy: 120 + (idx * 60), r: 15 + idx * 5 }
+  }));
+
+  const activeCluster = clusters.find(c => c.id === selectedCluster) || clusters[0] || {
+    id: "None", name: "Loading...", nodes: 0, kingpin: "Loading", expansion: "...", growth: "...", threat: "...", statesAffected: "...", recentActivity: "...", galaxyCoords: { cx: 200, cy: 150, r: 10 }
+  };
 
   const handleDeployTeam = () => {
     setIsDeploying(true);
