@@ -80,11 +80,31 @@ export default function HelpPage({ highContrast, showToast }: HelpPageProps) {
   const [ticketFiles, setTicketFiles] = useState<{ name: string; size: string }[]>([]);
   const [isDragging, setIsDragging] = useState(false);
 
-  const [tickets, setTickets] = useState<TicketRecord[]>([
-    { id: "TK-8492", subject: "Aadhaar Identity Gateway Latency", category: "Technical Issue", priority: "High", status: "Investigating", created: "2026-06-25 10:15 AM", messages: [{ sender: "System", text: "Ticket submitted. System log analysis initiated.", time: "10:15 AM" }] }
-  ]);
+  const [tickets, setTickets] = useState<TicketRecord[]>([]);
   const [selectedTicket, setSelectedTicket] = useState<TicketRecord | null>(null);
   const [ticketReply, setTicketReply] = useState("");
+
+  // Fetch tickets on mount
+  useEffect(() => {
+    fetch('/api/help/tickets')
+      .then(r => r.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          // Map backend id to ticketId
+          const formatted = data.map(t => ({
+            id: t.ticketId,
+            subject: t.subject,
+            category: t.category,
+            priority: t.priority,
+            status: t.status,
+            created: t.created,
+            messages: t.messages
+          }));
+          setTickets(formatted);
+        }
+      })
+      .catch(console.error);
+  }, []);
 
   // 6. Bug Reporting Form States
   const [bugCategory, setBugCategory] = useState("UI/UX Bug");

@@ -68,6 +68,11 @@ export default function NationalCommandView({ highContrast }: NationalCommandVie
     { id: "Emergency", label: "⚠ Emergency Zones", color: "text-orange-500" },
   ];
 
+  const textMain = highContrast ? "text-yellow-300" : "text-gray-900 dark:text-stone-100";
+  const bgCard = highContrast ? "bg-stone-900 border-stone-800" : "bg-white dark:bg-stone-900 border-gray-100 dark:border-stone-800";
+  const textMuted = highContrast ? "text-gray-400" : "text-gray-500 dark:text-stone-400";
+  const borderCol = highContrast ? "border-stone-800" : "border-gray-200 dark:border-stone-800";
+
   return (
     <div className="space-y-6 animate-in fade-in duration-350 select-none">
       

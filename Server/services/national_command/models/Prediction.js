@@ -11,7 +11,7 @@ const predictionSchema = new mongoose.Schema({
         conflictRisk: { type: String }
     },
     recommendations: [{ type: String }],
-    forecastPeriod: { type: String, enum: ['1 Week', '1 Month', '3 Months', '6 Months'], default: '1 Month' }
+    forecastPeriod: { type: String, default: '1 Month' }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Prediction', predictionSchema);

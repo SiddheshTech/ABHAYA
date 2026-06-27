@@ -4,6 +4,7 @@ import {
   ArrowUpRight, Users, CloudRain, Briefcase, Flame, MapPin, 
   CheckCircle, Play, Sparkles, RefreshCw
 } from "lucide-react";
+import { useRosStore } from "../../lib/rosStore";
 
 interface RiskForecastViewProps {
   highContrast?: boolean;
@@ -18,61 +19,34 @@ export default function RiskForecastView({ highContrast }: RiskForecastViewProps
   const textMain = highContrast ? "text-yellow-300" : "text-white";
   const textMuted = highContrast ? "text-stone-400" : "text-stone-400 font-mono text-[11px]";
 
-  // Immersive timeline data with custom risk metrics per block
-  const forecastData = {
-    "Today": {
-      weatherRisk: 14,
-      migrationRisk: 22,
-      economicDistress: 45,
-      conflictRisk: 12,
-      expectedCases: 14,
-      highRiskDistricts: 4,
-      confidence: "98.1%",
-      forecastText: "High stability. Nominal seasonal migration patterns observed. Railway patrols reports no major ticket anomalies."
-    },
-    "1 Week": {
-      weatherRisk: 38,
-      migrationRisk: 42,
-      economicDistress: 48,
-      conflictRisk: 15,
-      expectedCases: 29,
-      highRiskDistricts: 6,
-      confidence: "94.2%",
-      forecastText: "Initial monsoon alerts scheduled for Eastern borders. Marginal risk of displacement-related family migrations."
-    },
-    "1 Month": {
-      weatherRisk: 82,
-      migrationRisk: 79,
-      economicDistress: 64,
-      conflictRisk: 28,
-      expectedCases: 114,
-      highRiskDistricts: 14,
-      confidence: "87.0%",
-      forecastText: "Peak agricultural planting cycle completed. Expected surge in transient employment hubs near North Bihar & Assam Borders."
-    },
-    "3 Months": {
-      weatherRisk: 91,
-      migrationRisk: 85,
-      economicDistress: 72,
-      conflictRisk: 34,
-      expectedCases: 240,
-      highRiskDistricts: 18,
-      confidence: "79.4%",
-      forecastText: "Flood recession triggers high rural-to-urban displacement. High vulnerability expected across metropolitan transit overpasses."
-    },
-    "6 Months": {
-      weatherRisk: 45,
-      migrationRisk: 61,
-      economicDistress: 59,
-      conflictRisk: 18,
-      expectedCases: 380,
-      highRiskDistricts: 22,
-      confidence: "72.1%",
-      forecastText: "Winter harvest migration begins. Medium-term transit corridors between MP and Maharashtra projected to experience passenger spikes."
-    }
+  const { predictions } = useRosStore();
+
+  const generateForecast = (period: string, baseRisk: number) => {
+    const backendPred = predictions.find(p => p.forecastPeriod === period);
+    return {
+      weatherRisk: baseRisk + 4,
+      migrationRisk: backendPred?.confidenceScore || baseRisk + 12,
+      economicDistress: baseRisk + 25,
+      conflictRisk: baseRisk - 2,
+      expectedCases: backendPred ? Math.floor(baseRisk * 2.5) : baseRisk + 4,
+      highRiskDistricts: backendPred ? 14 : Math.floor(baseRisk / 5),
+      confidence: backendPred ? `${backendPred.confidenceScore}.0%` : `${80 + baseRisk / 10}%`,
+      forecastText: backendPred 
+        ? `Target: ${backendPred.targetState}. Expected Spike: ${backendPred.expectedSpike}. AI Confidence: ${backendPred.confidenceScore}%. Recommendations pending.` 
+        : `Baseline stability projected for ${period}. Nominal variations in seasonal migration patterns observed.`
+    };
   };
 
-  const currentForecast = forecastData[selectedTimeline];
+  // Dynamic timeline data generated from predictions
+  const forecastData: Record<string, any> = {
+    "Today": generateForecast("Today", 10),
+    "1 Week": generateForecast("1 Week", 30),
+    "1 Month": generateForecast("1 Month", 60),
+    "3 Months": generateForecast("3 Months", 70),
+    "6 Months": generateForecast("6 Months", 45)
+  };
+
+  const currentForecast = forecastData[selectedTimeline] || forecastData["1 Month"];
 
   const handleTriggerRecommendation = (rec: string) => {
     setActiveRecommendation(rec);

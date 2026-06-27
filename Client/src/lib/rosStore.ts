@@ -48,6 +48,24 @@ export interface Organization {
     casesHandled: number;
 }
 
+export interface AIModel {
+    _id: string;
+    name: string;
+    version: string;
+    status: string;
+    accuracy: number;
+    inferencesCompleted: number;
+}
+
+export interface AuditEvent {
+    _id: string;
+    action: string;
+    user: string;
+    resource: string;
+    status: string;
+    timestamp: string;
+}
+
 interface DashboardTopBar {
     missingChildren: number;
     recoveredChildren: number;
@@ -65,6 +83,8 @@ interface RosStore {
     networks: Network[];
     predictions: Prediction[];
     organizations: Organization[];
+    aiModels: AIModel[];
+    auditEvents: AuditEvent[];
     dashboard: DashboardTopBar | null;
     isLoading: boolean;
     error: string | null;
@@ -79,6 +99,8 @@ export const useRosStore = create<RosStore>((set, get) => ({
     networks: [],
     predictions: [],
     organizations: [],
+    aiModels: [],
+    auditEvents: [],
     dashboard: null,
     isLoading: false,
     error: null,
@@ -93,7 +115,9 @@ export const useRosStore = create<RosStore>((set, get) => ({
                 networksRes,
                 predictionsRes,
                 orgsRes,
-                dashboardRes
+                dashboardRes,
+                aiHealthRes,
+                auditRes
             ] = await Promise.all([
                 fetch('/api/command/recoveries').then(r => r.json()),
                 fetch('/api/command/majorCases').then(r => r.json()),
@@ -101,7 +125,9 @@ export const useRosStore = create<RosStore>((set, get) => ({
                 fetch('/api/genome/networks').then(r => r.json()),
                 fetch('/api/forecasts/predictions').then(r => r.json()),
                 fetch('/api/organizations').then(r => r.json()),
-                fetch('/api/command/dashboard').then(r => r.json())
+                fetch('/api/command/dashboard').then(r => r.json()),
+                fetch('/api/ai/health').then(r => r.json()),
+                fetch('/api/ledger/timeline').then(r => r.json())
             ]);
 
             set({
@@ -111,6 +137,8 @@ export const useRosStore = create<RosStore>((set, get) => ({
                 networks: networksRes || [],
                 predictions: predictionsRes || [],
                 organizations: orgsRes || [],
+                aiModels: aiHealthRes?.models || [],
+                auditEvents: auditRes?.timeline || [],
                 dashboard: dashboardRes?.topBar || null,
                 isLoading: false
             });

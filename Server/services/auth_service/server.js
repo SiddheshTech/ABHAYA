@@ -4,9 +4,11 @@ const cors = require('cors');
 require('dotenv').config();
 
 const authRoutes = require('./routes/auth');
+const ticketRoutes = require('./routes/tickets');
+const Ticket = require('./models/Ticket');
 
 const app = express();
-const PORT = process.env.PORT || 5001;
+const PORT = process.env.PORT || 5010;
 
 // Middleware
 app.use(cors());
@@ -14,6 +16,7 @@ app.use(express.json());
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/help/tickets', ticketRoutes);
 
 // Health Check
 app.get('/health', (req, res) => {
@@ -31,8 +34,24 @@ const startServer = async () => {
   }
   
   mongoose.connect(MONGO_URI)
-    .then(() => {
+    .then(async () => {
       console.log('Connected to MongoDB');
+
+      const ticketCount = await Ticket.countDocuments();
+      if (ticketCount === 0) {
+          await Ticket.create({
+              ticketId: "TK-8492",
+              subject: "Aadhaar Identity Gateway Latency",
+              category: "Technical Issue",
+              priority: "High",
+              status: "Investigating",
+              created: "2026-06-25 10:15 AM",
+              messages: [{ sender: "System", text: "Ticket submitted. System log analysis initiated.", time: "10:15 AM" }]
+          });
+      }
+
+      console.log('Seed complete.');
+
     app.listen(PORT, () => {
       console.log(`Auth Service listening on port ${PORT}`);
     });

@@ -3,6 +3,8 @@ import {
   ShieldCheck, Clock, Download, Search, Filter, Calendar, User, 
   Terminal, ArrowUpRight, Radio, RefreshCw, Key, HardDrive, Cpu 
 } from "lucide-react";
+import { useRosStore } from "../../lib/rosStore";
+import { useEffect } from "react";
 
 interface AuditTimelineViewProps {
   highContrast?: boolean;
@@ -32,15 +34,28 @@ export default function AuditTimelineView({ highContrast }: AuditTimelineViewPro
   const textMain = highContrast ? "text-yellow-300" : "text-white";
   const textMuted = highContrast ? "text-stone-400" : "text-stone-400 font-mono text-[11px]";
 
-  const logs: AuditLog[] = [
-    { id: "TX-4091", timestamp: "2026-06-25 13:02:11", actor: "Sanjay Deshmukh", role: "Systems Administrator", action: "Re-indexed decentralised state databases for TrackChild compatibility", category: "Data Sync", severity: "Info", terminalId: "TERM-ROS-01", blockHash: "7b1c8a0c2793e507b9e847c0a96f1d2c3b4a5d6e7f8e9c0b1a2" },
-    { id: "TX-4088", timestamp: "2026-06-25 12:44:19", actor: "Inspector Kavita Rao", role: "Child Welfare CWO", action: "Approved shelter transition plan for case ID REC-9481", category: "Case Update", severity: "Info", terminalId: "TERM-CRC-04", blockHash: "f902409bb7c90e2193b2a0c4f1e5672a91206c8b9d031e45da7" },
-    { id: "TX-4085", timestamp: "2026-06-25 11:15:32", actor: "Dr. Smith Kadam", role: "Chief Forensic Officer", action: "Triggered facial embedding search query on child dataset", category: "Inference Trigger", severity: "Info", terminalId: "TERM-AIFL-03", blockHash: "a948210bf984d720c1a2d593bf81102e3b4a5d6e7f8e9c0b1a2" },
-    { id: "TX-4081", timestamp: "2026-06-25 10:02:50", actor: "Sanjay Deshmukh", role: "Systems Administrator", action: "Configured multi-factor API access token boundaries for NGO nodes", category: "Access Control", severity: "Warning", terminalId: "TERM-ROS-01", blockHash: "d84019bf45c812a0f9b3e1a0c4d28e7f8e9c0b1a2d3b4a5d6e7f8e" },
-    { id: "TX-4075", timestamp: "2026-06-25 09:30:12", actor: "Amit Patel", role: "Watch Commander", action: "Submitted rapid community watch alert for missing child in Pune", category: "Case Update", severity: "Critical", terminalId: "TERM-CW-02", blockHash: "b16f9a0c2793e507b9e847c0a96f1d2c3b4a5d6e7f8e9c0b1a209" }
-  ];
+  const { auditEvents } = useRosStore();
+  const [logs, setLogs] = useState<AuditLog[]>([]);
 
-  const activeLog = logs.find(l => l.id === selectedLogId) || logs[0];
+  useEffect(() => {
+    if (auditEvents.length > 0) {
+      setLogs(auditEvents.map(e => ({
+        id: e._id,
+        timestamp: new Date(e.timestamp).toLocaleString(),
+        actor: e.user,
+        role: "Operator",
+        action: e.details,
+        category: "System Change", // Mocked category mapping
+        severity: "Info",
+        terminalId: "TERM-ROS-01",
+        blockHash: "a948210bf984d720c1a2d593bf81102e3b4a5d6e7f8e9c0b1a2"
+      })));
+    }
+  }, [auditEvents]);
+
+  const activeLog = logs.find(l => l.id === selectedLogId) || logs[0] || {
+    id: "None", timestamp: "...", actor: "...", role: "...", action: "...", category: "System Change", severity: "Info", terminalId: "...", blockHash: "..."
+  };
 
   const filteredLogs = logs.filter(log => {
     const matchesSearch = log.action.toLowerCase().includes(searchTerm.toLowerCase()) || log.actor.toLowerCase().includes(searchTerm.toLowerCase());

@@ -3,6 +3,8 @@ import {
   Building2, Shield, Search, Plus, Filter, Globe, Users, CheckCircle2, 
   Trash2, Phone, X, Award, CheckSquare, Layers, Radio, Activity, ChevronRight
 } from "lucide-react";
+import { useRosStore } from "../../lib/rosStore";
+import { useEffect } from "react";
 
 interface OrganizationsViewProps {
   highContrast?: boolean;
@@ -34,13 +36,25 @@ export default function OrganizationsView({ highContrast }: OrganizationsViewPro
   const [newContact, setNewContact] = useState("");
   const [newPersonnel, setNewPersonnel] = useState("12");
 
-  const [orgs, setOrgs] = useState<Organization[]>([
-    { id: "ORG-092", name: "Maharashtra State Police Hub", type: "Police", state: "Maharashtra", contact: "+91 22 2262 0111", personnel: 45, status: "Verified", performance: "96%", compliance: "99%", casesHandled: 480 },
-    { id: "ORG-115", name: "Bal Raksha NGO India", type: "NGO", state: "Delhi-NCR", contact: "+91 11 4056 9412", personnel: 120, status: "Verified", performance: "94%", compliance: "98%", casesHandled: 910 },
-    { id: "ORG-204", name: "Delhi Juvenile CWC Unit", type: "CWC", state: "Delhi-NCR", contact: "+91 11 2301 5218", personnel: 32, status: "Verified", performance: "92%", compliance: "100%", casesHandled: 340 },
-    { id: "ORG-308", name: "Sankalp Safe Shelter Mission", type: "Shelter", state: "Bihar", contact: "+91 612 258 0912", personnel: 85, status: "Verified", performance: "95%", compliance: "95%", casesHandled: 290 },
-    { id: "ORG-441", name: "National Child Protection Agency", type: "Government Agency", state: "Karnataka", contact: "+91 80 2235 4411", personnel: 18, status: "Pending Access", performance: "88%", compliance: "92%", casesHandled: 120 }
-  ]);
+  const { organizations: storeOrgs } = useRosStore();
+  const [orgs, setOrgs] = useState<Organization[]>([]);
+
+  useEffect(() => {
+    if (storeOrgs.length > 0) {
+      setOrgs(storeOrgs.map(o => ({
+        id: o._id,
+        name: o.name,
+        type: o.type as any,
+        state: "National", // default
+        contact: "+91 80 000 000",
+        personnel: 50,
+        status: "Verified",
+        performance: "95%",
+        compliance: "98%",
+        casesHandled: o.casesHandled || 0
+      })));
+    }
+  }, [storeOrgs]);
 
   const bgCard = highContrast ? "bg-stone-950 border-stone-800" : "bg-stone-900/95 border-stone-800 text-stone-100";
   const borderCol = highContrast ? "border-stone-850" : "border-stone-800/80";
