@@ -42,6 +42,19 @@ export default function AIForensicDashboard({ onLogout, highContrast }: AIForens
   const [copilotResponse, setCopilotResponse] = useState("");
   const [isExporting, setIsExporting] = useState(false);
   const [isInitializingTask, setIsInitializingTask] = useState(false);
+  const [dashboardStats, setDashboardStats] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchStats = () => {
+      fetch("/api/dashboard/stats")
+        .then(r => r.json())
+        .then(data => setDashboardStats(data))
+        .catch(console.error);
+    };
+    fetchStats();
+    const interval = setInterval(fetchStats, 15000);
+    return () => clearInterval(interval);
+  }, []);
 
   const showToast = (message: string, type: "success" | "error" | "info" = "info") => {
     setToast({ message, type });
@@ -285,42 +298,42 @@ export default function AIForensicDashboard({ onLogout, highContrast }: AIForens
             <div className={`p-4 rounded-xl border ${bgCard} shadow-sm relative overflow-hidden group`}>
               <h4 className={`text-xs font-bold mb-2 uppercase tracking-wider ${textSecondary}`}>Identity Recons</h4>
               <div className="flex items-end justify-between">
-                <span className="text-3xl font-black tracking-tighter leading-none">124</span>
+                <span className="text-3xl font-black tracking-tighter leading-none">{dashboardStats?.identityRecons ?? "..."}</span>
                 <span className="text-emerald-500 text-xs font-bold flex items-center gap-1"><TrendingUp className="w-3 h-3" />+12</span>
               </div>
             </div>
             <div className={`p-4 rounded-xl border ${bgCard} shadow-sm relative overflow-hidden group`}>
               <h4 className={`text-xs font-bold mb-2 uppercase tracking-wider ${textSecondary}`}>Active Networks</h4>
               <div className="flex items-end justify-between">
-                <span className="text-3xl font-black tracking-tighter leading-none">8</span>
+                <span className="text-3xl font-black tracking-tighter leading-none">{dashboardStats?.activeNetworks ?? "..."}</span>
                 <Network className="w-4 h-4 text-blue-500 opacity-50" />
               </div>
             </div>
             <div className={`p-4 rounded-xl border ${bgCard} shadow-sm relative overflow-hidden group`}>
               <h4 className={`text-xs font-bold mb-2 uppercase tracking-wider ${textSecondary}`}>Threat Level</h4>
               <div className="flex items-end justify-between">
-                <span className="text-xl font-black tracking-tighter leading-none text-red-500">CRITICAL</span>
+                <span className="text-xl font-black tracking-tighter leading-none text-red-500">{dashboardStats?.threatLevel ?? "..."}</span>
                 <AlertTriangle className="w-4 h-4 text-red-500 animate-pulse" />
               </div>
             </div>
             <div className={`p-4 rounded-xl border ${bgCard} shadow-sm relative overflow-hidden group`}>
               <h4 className={`text-xs font-bold mb-2 uppercase tracking-wider ${textSecondary}`}>Predictions Gen.</h4>
               <div className="flex items-end justify-between">
-                <span className="text-3xl font-black tracking-tighter leading-none">1.4k</span>
+                <span className="text-3xl font-black tracking-tighter leading-none">{dashboardStats?.predictionsGenerated ?? "..."}</span>
                 <BrainCircuit className="w-4 h-4 text-purple-500 opacity-50" />
               </div>
             </div>
             <div className={`p-4 rounded-xl border ${bgCard} shadow-sm relative overflow-hidden group`}>
               <h4 className={`text-xs font-bold mb-2 uppercase tracking-wider ${textSecondary}`}>New Intelligence</h4>
               <div className="flex items-end justify-between">
-                <span className="text-3xl font-black tracking-tighter leading-none">45</span>
+                <span className="text-3xl font-black tracking-tighter leading-none">{dashboardStats?.newIntelligence ?? "..."}</span>
                 <Database className="w-4 h-4 text-amber-500 opacity-50" />
               </div>
             </div>
             <div className={`p-4 rounded-xl border ${bgCard} shadow-sm relative overflow-hidden group`}>
               <h4 className={`text-xs font-bold mb-2 uppercase tracking-wider ${textSecondary}`}>Forensic Alerts</h4>
               <div className="flex items-end justify-between">
-                <span className="text-3xl font-black tracking-tighter leading-none">12</span>
+                <span className="text-3xl font-black tracking-tighter leading-none">{dashboardStats?.forensicAlerts ?? "..."}</span>
                 <ShieldAlert className="w-4 h-4 text-rose-500 opacity-50" />
               </div>
             </div>
@@ -334,11 +347,7 @@ export default function AIForensicDashboard({ onLogout, highContrast }: AIForens
                   <Fingerprint className="w-4 h-4 text-emerald-500" /> New Reconstructions
                 </h4>
                 <div className="space-y-3 flex-1">
-                  {[
-                    { id: "REC-942", match: "98%", status: "Verified", time: "10m ago" },
-                    { id: "REC-881", match: "84%", status: "Pending", time: "1h ago" },
-                    { id: "REC-705", match: "92%", status: "Verified", time: "3h ago" }
-                  ].map((rec, i) => (
+                  {(dashboardStats?.newReconstructions || []).map((rec: any, i: number) => (
                     <div key={i} className={`p-3 rounded-xl border ${highContrast ? "border-stone-800 bg-stone-900/50" : "border-gray-100 bg-gray-50"} flex items-center justify-between`}>
                       <div>
                         <p className="text-sm font-bold">{rec.id}</p>
@@ -358,24 +367,17 @@ export default function AIForensicDashboard({ onLogout, highContrast }: AIForens
                   <Activity className="w-4 h-4 text-blue-500" /> Active Analyses
                 </h4>
                 <div className="space-y-4">
-                  <div>
-                    <div className="flex justify-between text-xs mb-1">
-                      <span className="font-bold">Deepfake Audio Sweep</span>
-                      <span className="text-emerald-500">65%</span>
+                  {(dashboardStats?.activeAnalyses || []).map((analysis: any, i: number) => (
+                    <div key={i}>
+                      <div className="flex justify-between text-xs mb-1">
+                        <span className="font-bold">{analysis.name}</span>
+                        <span className={`text-${analysis.color}-500`}>{analysis.progress}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 dark:bg-stone-800 h-1.5 rounded-full overflow-hidden">
+                        <div className={`bg-${analysis.color}-500 h-full rounded-full`} style={{ width: `${analysis.progress}%` }}></div>
+                      </div>
                     </div>
-                    <div className="w-full bg-gray-200 dark:bg-stone-800 h-1.5 rounded-full overflow-hidden">
-                      <div className="bg-emerald-500 h-full w-[65%] rounded-full"></div>
-                    </div>
-                  </div>
-                  <div>
-                    <div className="flex justify-between text-xs mb-1">
-                      <span className="font-bold">Device Extraction (Mobile)</span>
-                      <span className="text-amber-500">40%</span>
-                    </div>
-                    <div className="w-full bg-gray-200 dark:bg-stone-800 h-1.5 rounded-full overflow-hidden">
-                      <div className="bg-amber-500 h-full w-[40%] rounded-full"></div>
-                    </div>
-                  </div>
+                  ))}
                 </div>
                 
                 <div className="mt-6 flex justify-between items-center text-xs font-bold">
@@ -462,33 +464,19 @@ export default function AIForensicDashboard({ onLogout, highContrast }: AIForens
                   <Eye className="w-4 h-4 text-amber-500" /> AI Findings
                 </h4>
                 <div className="space-y-4 flex-1">
-                  <div className="flex gap-3 items-start">
-                    <div className="w-6 h-6 rounded bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center shrink-0 mt-0.5">
-                      <Target className="w-3 h-3 text-purple-600 dark:text-purple-400" />
+                  {(dashboardStats?.aiFindings || []).map((finding: any, i: number) => (
+                    <div key={i} className="flex gap-3 items-start">
+                      <div className={`w-6 h-6 rounded ${i===0?'bg-purple-100 dark:bg-purple-900/30':i===1?'bg-red-100 dark:bg-red-900/30':'bg-blue-100 dark:bg-blue-900/30'} flex items-center justify-center shrink-0 mt-0.5`}>
+                        {i === 0 && <Target className="w-3 h-3 text-purple-600 dark:text-purple-400" />}
+                        {i === 1 && <AlertTriangle className="w-3 h-3 text-red-600 dark:text-red-400" />}
+                        {i === 2 && <LineChart className="w-3 h-3 text-blue-600 dark:text-blue-400" />}
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold mb-0.5">{finding.type}</p>
+                        <p className={`text-[10px] ${textSecondary}`}>{finding.desc}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-xs font-bold mb-0.5">Pattern Matches</p>
-                      <p className={`text-[10px] ${textSecondary}`}>14 new links established in Syndicate X communications.</p>
-                    </div>
-                  </div>
-                  <div className="flex gap-3 items-start">
-                    <div className="w-6 h-6 rounded bg-red-100 dark:bg-red-900/30 flex items-center justify-center shrink-0 mt-0.5">
-                      <AlertTriangle className="w-3 h-3 text-red-600 dark:text-red-400" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold mb-0.5">Network Alerts</p>
-                      <p className={`text-[10px] ${textSecondary}`}>Unusual encrypted traffic detected in Sector 4.</p>
-                    </div>
-                  </div>
-                  <div className="flex gap-3 items-start">
-                    <div className="w-6 h-6 rounded bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center shrink-0 mt-0.5">
-                      <LineChart className="w-3 h-3 text-blue-600 dark:text-blue-400" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold mb-0.5">Behavior Predictions</p>
-                      <p className={`text-[10px] ${textSecondary}`}>85% probability of target relocation in 24hrs.</p>
-                    </div>
-                  </div>
+                  ))}
                 </div>
               </div>
             </div>
@@ -509,7 +497,7 @@ export default function AIForensicDashboard({ onLogout, highContrast }: AIForens
                   <Network className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                 </div>
                 <div>
-                  <div className="text-2xl font-black text-blue-700 dark:text-blue-400 leading-none mb-1">3</div>
+                  <div className="text-2xl font-black text-blue-700 dark:text-blue-400 leading-none mb-1">{dashboardStats?.dailyBrief?.newNetworkClusters ?? "..."}</div>
                   <p className="text-xs font-bold text-blue-900/70 dark:text-blue-300">New Network Clusters</p>
                 </div>
               </div>
@@ -519,7 +507,7 @@ export default function AIForensicDashboard({ onLogout, highContrast }: AIForens
                   <Lock className="w-5 h-5 text-amber-600 dark:text-amber-400" />
                 </div>
                 <div>
-                  <div className="text-2xl font-black text-amber-700 dark:text-amber-400 leading-none mb-1">2</div>
+                  <div className="text-2xl font-black text-amber-700 dark:text-amber-400 leading-none mb-1">{dashboardStats?.dailyBrief?.emergingKingpins ?? "..."}</div>
                   <p className="text-xs font-bold text-amber-900/70 dark:text-amber-300">Emerging Kingpins</p>
                 </div>
               </div>
@@ -529,7 +517,7 @@ export default function AIForensicDashboard({ onLogout, highContrast }: AIForens
                   <MapPin className="w-5 h-5 text-red-600 dark:text-red-400" />
                 </div>
                 <div>
-                  <div className="text-2xl font-black text-red-700 dark:text-red-400 leading-none mb-1">1</div>
+                  <div className="text-2xl font-black text-red-700 dark:text-red-400 leading-none mb-1">{dashboardStats?.dailyBrief?.highRiskMigration ?? "..."}</div>
                   <p className="text-xs font-bold text-red-900/70 dark:text-red-300">High-Risk Migration Event</p>
                 </div>
               </div>
@@ -539,7 +527,7 @@ export default function AIForensicDashboard({ onLogout, highContrast }: AIForens
                   <Fingerprint className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                 </div>
                 <div>
-                  <div className="text-2xl font-black text-emerald-700 dark:text-emerald-400 leading-none mb-1">8</div>
+                  <div className="text-2xl font-black text-emerald-700 dark:text-emerald-400 leading-none mb-1">{dashboardStats?.dailyBrief?.identityMatches ?? "..."}</div>
                   <p className="text-xs font-bold text-emerald-900/70 dark:text-emerald-300">Identity Matches Generated</p>
                 </div>
               </div>

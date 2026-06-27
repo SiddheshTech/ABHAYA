@@ -67,6 +67,7 @@ async function startServer() {
   app.use('/api/gemini',        proxyTo(SERVICES.aiForensicLab, '/api/gemini'));
   app.use('/api/network-genome',proxyTo(SERVICES.aiForensicLab, '/api/network-genome'));
   app.use('/api/search',        proxyTo(SERVICES.aiForensicLab, '/api/search'));
+  app.use('/api/dashboard',     proxyTo(SERVICES.aiForensicLab, '/api/dashboard'));
 
   // Ghost Engine (port 8001)
   app.use('/api/v1/ghost',      proxyTo(SERVICES.ghostEngine, '/api/v1/ghost'));
