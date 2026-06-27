@@ -18,6 +18,7 @@ export default function NetworkGenome({ highContrast, showToast }: NetworkGenome
   // State to randomly pulse nodes
   const [pulsingNode, setPulsingNode] = useState<number | null>(null);
   const [isSequencing, setIsSequencing] = useState(false);
+  const [genomeData, setGenomeData] = useState<any>(null);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -26,14 +27,24 @@ export default function NetworkGenome({ highContrast, showToast }: NetworkGenome
     return () => clearInterval(interval);
   }, []);
 
-  const handleRunSequencing = () => {
+  const handleRunSequencing = async () => {
     setIsSequencing(true);
     if (showToast) showToast("Initiating Genome Sequencing. Analyzing structural nodes...", "info");
     
-    setTimeout(() => {
+    try {
+      const response = await fetch("/api/network-genome/sequence", {
+        method: "POST"
+      });
+      if (!response.ok) throw new Error("API Failed");
+      const data = await response.json();
+      setGenomeData(data);
+      if (showToast) showToast("Sequencing complete. Found critical mutation vectors.", "success");
+    } catch (error) {
+      console.error("Sequencing failed:", error);
+      if (showToast) showToast("Genome sequencing failed to connect.", "error");
+    } finally {
       setIsSequencing(false);
-      if (showToast) showToast("Sequencing complete. Found 3 critical mutation vectors.", "success");
-    }, 3000);
+    }
   };
 
   const dnaNodes = [
@@ -240,7 +251,7 @@ export default function NetworkGenome({ highContrast, showToast }: NetworkGenome
                   <span className="text-emerald-500 font-bold">High</span>
                 </div>
                 <div className="w-full bg-gray-200 dark:bg-stone-800 h-1.5 rounded-full overflow-hidden">
-                  <div className="bg-emerald-500 h-full w-[85%] rounded-full"></div>
+                  <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${genomeData ? genomeData.network_strength_percent : 85}%` }}></div>
                 </div>
               </div>
               
@@ -250,19 +261,19 @@ export default function NetworkGenome({ highContrast, showToast }: NetworkGenome
                   <span className="text-amber-500 font-bold">Critical</span>
                 </div>
                 <div className="w-full bg-gray-200 dark:bg-stone-800 h-1.5 rounded-full overflow-hidden">
-                  <div className="bg-amber-500 h-full w-[92%] rounded-full animate-pulse"></div>
+                  <div className="bg-amber-500 h-full rounded-full animate-pulse" style={{ width: `${genomeData ? genomeData.mutation_probability : 92}%` }}></div>
                 </div>
               </div>
 
               <div>
                 <div className="flex justify-between text-xs mb-1">
                   <span className={`font-bold ${textSecondary}`}>Collapse Point Prediction</span>
-                  <span className="text-blue-500 font-bold">3 Nodes</span>
+                  <span className="text-blue-500 font-bold">{genomeData ? genomeData.collapse_point_nodes : 3} Nodes</span>
                 </div>
                 <div className="w-full bg-gray-200 dark:bg-stone-800 h-1.5 rounded-full overflow-hidden">
-                  <div className="bg-blue-500 h-full w-[30%] rounded-full"></div>
+                  <div className="bg-blue-500 h-full rounded-full" style={{ width: `${genomeData ? genomeData.collapse_probability : 30}%` }}></div>
                 </div>
-                <p className={`text-[10px] mt-2 leading-tight ${textSecondary}`}>Taking out top 3 command nodes has 80% probability of network dissolution.</p>
+                <p className={`text-[10px] mt-2 leading-tight ${textSecondary}`}>Taking out top {genomeData ? genomeData.collapse_point_nodes : 3} command nodes has {genomeData ? genomeData.collapse_probability : 80}% probability of network dissolution.</p>
               </div>
             </div>
           </div>
@@ -276,14 +287,14 @@ export default function NetworkGenome({ highContrast, showToast }: NetworkGenome
                  <div className="w-2 h-2 rounded-full bg-purple-500"></div>
                  <div className="flex-1">
                    <p className="text-xs font-bold">Logistics Shift</p>
-                   <p className={`text-[10px] ${textSecondary}`}>Switching to rail transport</p>
+                   <p className={`text-[10px] ${textSecondary}`}>{genomeData ? genomeData.logistics_shift : 'Switching to rail transport'}</p>
                  </div>
                </div>
                <div className="flex items-center gap-3">
                  <div className="w-2 h-2 rounded-full bg-purple-500/50"></div>
                  <div className="flex-1">
                    <p className="text-xs font-bold">Recruitment</p>
-                   <p className={`text-[10px] ${textSecondary}`}>Targeting college areas</p>
+                   <p className={`text-[10px] ${textSecondary}`}>{genomeData ? genomeData.recruitment_shift : 'Targeting college areas'}</p>
                  </div>
                </div>
              </div>
@@ -300,7 +311,7 @@ export default function NetworkGenome({ highContrast, showToast }: NetworkGenome
         <div className="grid grid-cols-4 gap-6">
           <div className="flex flex-col gap-1">
             <span className={`text-[10px] font-bold uppercase tracking-wider ${textSecondary}`}>Target Network</span>
-            <span className="text-2xl font-black text-blue-600 dark:text-blue-400 font-mono tracking-tight">G-12</span>
+            <span className="text-2xl font-black text-blue-600 dark:text-blue-400 font-mono tracking-tight">{genomeData ? genomeData.target_network : 'G-12'}</span>
             <span className="text-xs font-bold flex items-center gap-1 text-emerald-500">
               <Activity className="w-3 h-3" /> Active sequencing
             </span>
@@ -308,7 +319,7 @@ export default function NetworkGenome({ highContrast, showToast }: NetworkGenome
 
           <div className="flex flex-col gap-1">
             <span className={`text-[10px] font-bold uppercase tracking-wider ${textSecondary}`}>Mutation Probability</span>
-            <span className="text-2xl font-black text-amber-500 font-mono tracking-tight">78%</span>
+            <span className="text-2xl font-black text-amber-500 font-mono tracking-tight">{genomeData ? genomeData.mutation_probability : 78}%</span>
             <span className="text-xs font-bold flex items-center gap-1 text-amber-600 dark:text-amber-400">
               <AlertTriangle className="w-3 h-3" /> Imminent change
             </span>
@@ -317,9 +328,9 @@ export default function NetworkGenome({ highContrast, showToast }: NetworkGenome
           <div className="flex flex-col gap-1">
             <span className={`text-[10px] font-bold uppercase tracking-wider ${textSecondary}`}>Expected Shift</span>
             <div className="flex items-center gap-2 mt-1">
-              <span className="text-sm font-bold border border-gray-200 dark:border-stone-700 px-2 py-1 rounded">Mumbai</span>
+              <span className="text-sm font-bold border border-gray-200 dark:border-stone-700 px-2 py-1 rounded">{genomeData ? genomeData.expected_shift.from_location : 'Mumbai'}</span>
               <ArrowRight className={`w-4 h-4 ${textSecondary}`} />
-              <span className="text-sm font-bold border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 py-1 rounded">Pune</span>
+              <span className="text-sm font-bold border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 py-1 rounded">{genomeData ? genomeData.expected_shift.to_location : 'Pune'}</span>
             </div>
             <span className={`text-xs mt-1 ${textSecondary}`}>Based on precursor activity</span>
           </div>
@@ -328,9 +339,9 @@ export default function NetworkGenome({ highContrast, showToast }: NetworkGenome
             <span className={`text-[10px] font-bold uppercase tracking-wider ${textSecondary}`}>Predicted Expansion</span>
             <div className="flex items-center gap-2 mt-1">
               <MapPin className="w-5 h-5 text-purple-500" />
-              <span className="text-lg font-bold">Nashik</span>
+              <span className="text-lg font-bold">{genomeData ? genomeData.predicted_expansion : 'Nashik'}</span>
             </div>
-            <span className={`text-xs mt-1 ${textSecondary}`}>84% confidence score</span>
+            <span className={`text-xs mt-1 ${textSecondary}`}>{genomeData ? genomeData.expansion_confidence : 84}% confidence score</span>
           </div>
         </div>
       </div>
