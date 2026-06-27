@@ -104,5 +104,15 @@ class GhostReconstructionInput(BaseModel):
     weight: Optional[str] = None
     features: Optional[str] = None
     language: Optional[str] = None
+    microbiome_markers: Optional[str] = None
+    nutrition_deficiency: Optional[str] = None
+    clothing_weave: Optional[str] = None
     files: Optional[List[str]] = None
     userEmail: Optional[str] = None
+
+class AudioAnalysisResponse(BaseModel):
+    text_transcription: str
+    detected_language: str
+    accent_confidence: float
+    phonetic_markers: List[str]
+    regional_mapping: str

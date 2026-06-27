@@ -86,23 +86,18 @@ export default function NetworkGenome({ highContrast, showToast }: NetworkGenome
         <div className={`col-span-3 space-y-4 flex flex-col h-full overflow-y-auto pr-2 custom-scrollbar`}>
           <div className={`p-5 rounded-2xl border ${bgCard} shadow-sm`}>
             <h4 className="font-bold mb-4 flex items-center gap-2">
-              <Zap className="w-4 h-4 text-amber-500" /> Emerging Networks
+              <Network className="w-4 h-4 text-amber-500" /> Emerging Networks
             </h4>
             <div className="space-y-3">
-              <div className={`p-3 rounded-xl border ${highContrast ? "border-stone-800 bg-stone-900/50" : "border-amber-100 bg-amber-50"} flex justify-between items-center`}>
-                <div>
-                  <p className="text-sm font-bold">Strain Alpha-9</p>
-                  <p className={`text-[10px] ${textSecondary}`}>12 Nodes • High Activity</p>
+              {genomeData?.emerging_networks?.map((net: any, idx: number) => (
+                <div key={`em-${idx}`} className={`p-3 rounded-xl border ${highContrast ? "border-stone-800 bg-stone-900/50" : "border-amber-100 bg-amber-50"} flex justify-between items-center`}>
+                  <div>
+                    <p className="text-sm font-bold">{net.name}</p>
+                    <p className={`text-[10px] ${textSecondary}`}>{net.description} • {net.status}</p>
+                  </div>
+                  <div className={`w-2 h-2 rounded-full ${net.status?.toLowerCase().includes('high') ? 'bg-amber-500 animate-pulse' : 'bg-gray-400'}`}></div>
                 </div>
-                <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></div>
-              </div>
-              <div className={`p-3 rounded-xl border ${highContrast ? "border-stone-800 bg-stone-900/50" : "border-gray-100 bg-gray-50"} flex justify-between items-center`}>
-                <div>
-                  <p className="text-sm font-bold">Strain Beta-4</p>
-                  <p className={`text-[10px] ${textSecondary}`}>5 Nodes • Forming</p>
-                </div>
-                <div className="w-2 h-2 rounded-full bg-gray-400"></div>
-              </div>
+              )) || <p className={`text-xs ${textSecondary}`}>Run sequencing to identify networks.</p>}
             </div>
           </div>
 
@@ -111,13 +106,15 @@ export default function NetworkGenome({ highContrast, showToast }: NetworkGenome
               <Biohazard className="w-4 h-4 text-rose-500" /> Recently Mutated
             </h4>
             <div className="space-y-3">
-              <div className={`p-3 rounded-xl border ${highContrast ? "border-stone-800 bg-stone-900/50" : "border-rose-100 bg-rose-50"} flex justify-between items-center`}>
-                <div>
-                  <p className="text-sm font-bold">Syndicate G-12</p>
-                  <p className={`text-[10px] ${textSecondary}`}>Tactics shift detected</p>
+              {genomeData?.mutated_networks?.map((net: any, idx: number) => (
+                <div key={`mu-${idx}`} className={`p-3 rounded-xl border ${highContrast ? "border-stone-800 bg-stone-900/50" : "border-rose-100 bg-rose-50"} flex justify-between items-center`}>
+                  <div>
+                    <p className="text-sm font-bold">{net.name}</p>
+                    <p className={`text-[10px] ${textSecondary}`}>{net.description}</p>
+                  </div>
+                  <TrendingUp className="w-4 h-4 text-rose-500" />
                 </div>
-                <TrendingUp className="w-4 h-4 text-rose-500" />
-              </div>
+              ))}
             </div>
           </div>
 
@@ -126,13 +123,15 @@ export default function NetworkGenome({ highContrast, showToast }: NetworkGenome
               <BrainCircuit className="w-4 h-4 text-blue-500" /> Rapid Growth
             </h4>
             <div className="space-y-3">
-              <div className={`p-3 rounded-xl border ${highContrast ? "border-stone-800 bg-stone-900/50" : "border-blue-100 bg-blue-50"} flex justify-between items-center`}>
-                <div>
-                  <p className="text-sm font-bold">Cluster Delta</p>
-                  <p className={`text-[10px] ${textSecondary}`}>+40% volume in 24h</p>
+              {genomeData?.rapid_growth?.map((net: any, idx: number) => (
+                <div key={`rg-${idx}`} className={`p-3 rounded-xl border ${highContrast ? "border-stone-800 bg-stone-900/50" : "border-blue-100 bg-blue-50"} flex justify-between items-center`}>
+                  <div>
+                    <p className="text-sm font-bold">{net.name}</p>
+                    <p className={`text-[10px] ${textSecondary}`}>{net.description}</p>
+                  </div>
+                  <Activity className="w-4 h-4 text-blue-500" />
                 </div>
-                <Activity className="w-4 h-4 text-blue-500" />
-              </div>
+              ))}
             </div>
           </div>
           
@@ -141,12 +140,14 @@ export default function NetworkGenome({ highContrast, showToast }: NetworkGenome
               <Users className="w-4 h-4 text-gray-500" /> Dormant Networks
             </h4>
             <div className="space-y-3">
-              <div className={`p-3 rounded-xl border ${highContrast ? "border-stone-800 bg-stone-900/50" : "border-gray-100 bg-gray-50"} flex justify-between items-center opacity-70`}>
-                <div>
-                  <p className="text-sm font-bold">Old Guard</p>
-                  <p className={`text-[10px] ${textSecondary}`}>No activity &gt; 60 days</p>
+              {genomeData?.dormant_networks?.map((net: any, idx: number) => (
+                <div key={`do-${idx}`} className={`p-3 rounded-xl border ${highContrast ? "border-stone-800 bg-stone-900/50" : "border-gray-100 bg-gray-50"} flex justify-between items-center opacity-70`}>
+                  <div>
+                    <p className="text-sm font-bold">{net.name}</p>
+                    <p className={`text-[10px] ${textSecondary}`}>{net.description}</p>
+                  </div>
                 </div>
-              </div>
+              ))}
             </div>
           </div>
         </div>
@@ -248,32 +249,32 @@ export default function NetworkGenome({ highContrast, showToast }: NetworkGenome
               <div>
                 <div className="flex justify-between text-xs mb-1">
                   <span className={`font-bold ${textSecondary}`}>Network Strength</span>
-                  <span className="text-emerald-500 font-bold">High</span>
+                  <span className="text-emerald-500 font-bold">{genomeData ? 'High' : '--'}</span>
                 </div>
                 <div className="w-full bg-gray-200 dark:bg-stone-800 h-1.5 rounded-full overflow-hidden">
-                  <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${genomeData ? genomeData.network_strength_percent : 85}%` }}></div>
+                  <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${genomeData?.analytics?.network_strength_percent || 0}%` }}></div>
                 </div>
               </div>
               
               <div>
                 <div className="flex justify-between text-xs mb-1">
                   <span className={`font-bold ${textSecondary}`}>Mutation Risk</span>
-                  <span className="text-amber-500 font-bold">Critical</span>
+                  <span className="text-amber-500 font-bold">{genomeData ? 'Critical' : '--'}</span>
                 </div>
                 <div className="w-full bg-gray-200 dark:bg-stone-800 h-1.5 rounded-full overflow-hidden">
-                  <div className="bg-amber-500 h-full rounded-full animate-pulse" style={{ width: `${genomeData ? genomeData.mutation_probability : 92}%` }}></div>
+                  <div className="bg-amber-500 h-full rounded-full animate-pulse" style={{ width: `${genomeData?.analytics?.mutation_probability || 0}%` }}></div>
                 </div>
               </div>
 
               <div>
                 <div className="flex justify-between text-xs mb-1">
                   <span className={`font-bold ${textSecondary}`}>Collapse Point Prediction</span>
-                  <span className="text-blue-500 font-bold">{genomeData ? genomeData.collapse_point_nodes : 3} Nodes</span>
+                  <span className="text-blue-500 font-bold">{genomeData?.analytics?.collapse_point_nodes || 0} Nodes</span>
                 </div>
                 <div className="w-full bg-gray-200 dark:bg-stone-800 h-1.5 rounded-full overflow-hidden">
-                  <div className="bg-blue-500 h-full rounded-full" style={{ width: `${genomeData ? genomeData.collapse_probability : 30}%` }}></div>
+                  <div className="bg-blue-500 h-full rounded-full" style={{ width: `${genomeData?.analytics?.collapse_probability || 0}%` }}></div>
                 </div>
-                <p className={`text-[10px] mt-2 leading-tight ${textSecondary}`}>Taking out top {genomeData ? genomeData.collapse_point_nodes : 3} command nodes has {genomeData ? genomeData.collapse_probability : 80}% probability of network dissolution.</p>
+                <p className={`text-[10px] mt-2 leading-tight ${textSecondary}`}>Taking out top {genomeData?.analytics?.collapse_point_nodes || 0} command nodes has {genomeData?.analytics?.collapse_probability || 0}% probability of network dissolution.</p>
               </div>
             </div>
           </div>
@@ -287,14 +288,14 @@ export default function NetworkGenome({ highContrast, showToast }: NetworkGenome
                  <div className="w-2 h-2 rounded-full bg-purple-500"></div>
                  <div className="flex-1">
                    <p className="text-xs font-bold">Logistics Shift</p>
-                   <p className={`text-[10px] ${textSecondary}`}>{genomeData ? genomeData.logistics_shift : 'Switching to rail transport'}</p>
+                   <p className={`text-[10px] ${textSecondary}`}>{genomeData?.analytics?.logistics_shift || '--'}</p>
                  </div>
                </div>
                <div className="flex items-center gap-3">
                  <div className="w-2 h-2 rounded-full bg-purple-500/50"></div>
                  <div className="flex-1">
                    <p className="text-xs font-bold">Recruitment</p>
-                   <p className={`text-[10px] ${textSecondary}`}>{genomeData ? genomeData.recruitment_shift : 'Targeting college areas'}</p>
+                   <p className={`text-[10px] ${textSecondary}`}>{genomeData?.analytics?.recruitment_shift || '--'}</p>
                  </div>
                </div>
              </div>
@@ -311,37 +312,36 @@ export default function NetworkGenome({ highContrast, showToast }: NetworkGenome
         <div className="grid grid-cols-4 gap-6">
           <div className="flex flex-col gap-1">
             <span className={`text-[10px] font-bold uppercase tracking-wider ${textSecondary}`}>Target Network</span>
-            <span className="text-2xl font-black text-blue-600 dark:text-blue-400 font-mono tracking-tight">{genomeData ? genomeData.target_network : 'G-12'}</span>
+            <span className="text-2xl font-black text-blue-600 dark:text-blue-400 font-mono tracking-tight">{genomeData?.analytics?.target_network || '--'}</span>
             <span className="text-xs font-bold flex items-center gap-1 text-emerald-500">
-              <Activity className="w-3 h-3" /> Active sequencing
+              <Activity className="w-3 h-3" /> {genomeData ? 'Active sequencing' : 'Awaiting start'}
             </span>
           </div>
 
           <div className="flex flex-col gap-1">
             <span className={`text-[10px] font-bold uppercase tracking-wider ${textSecondary}`}>Mutation Probability</span>
-            <span className="text-2xl font-black text-amber-500 font-mono tracking-tight">{genomeData ? genomeData.mutation_probability : 78}%</span>
+            <span className="text-2xl font-black text-amber-500 font-mono tracking-tight">{genomeData?.analytics?.mutation_probability || 0}%</span>
             <span className="text-xs font-bold flex items-center gap-1 text-amber-600 dark:text-amber-400">
-              <AlertTriangle className="w-3 h-3" /> Imminent change
+              <AlertTriangle className="w-3 h-3" /> {genomeData ? 'Imminent change' : '--'}
             </span>
           </div>
 
           <div className="flex flex-col gap-1">
             <span className={`text-[10px] font-bold uppercase tracking-wider ${textSecondary}`}>Expected Shift</span>
             <div className="flex items-center gap-2 mt-1">
-              <span className="text-sm font-bold border border-gray-200 dark:border-stone-700 px-2 py-1 rounded">{genomeData ? genomeData.expected_shift.from_location : 'Mumbai'}</span>
+              <span className="text-sm font-bold border border-gray-200 dark:border-stone-700 px-2 py-1 rounded">{genomeData?.analytics?.expected_shift?.[0] || '--'}</span>
               <ArrowRight className={`w-4 h-4 ${textSecondary}`} />
-              <span className="text-sm font-bold border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 py-1 rounded">{genomeData ? genomeData.expected_shift.to_location : 'Pune'}</span>
+              <span className="text-sm font-bold border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 py-1 rounded">{genomeData?.analytics?.expected_shift?.[1] || '--'}</span>
             </div>
             <span className={`text-xs mt-1 ${textSecondary}`}>Based on precursor activity</span>
           </div>
 
           <div className="flex flex-col gap-1">
             <span className={`text-[10px] font-bold uppercase tracking-wider ${textSecondary}`}>Predicted Expansion</span>
-            <div className="flex items-center gap-2 mt-1">
-              <MapPin className="w-5 h-5 text-purple-500" />
-              <span className="text-lg font-bold">{genomeData ? genomeData.predicted_expansion : 'Nashik'}</span>
-            </div>
-            <span className={`text-xs mt-1 ${textSecondary}`}>{genomeData ? genomeData.expansion_confidence : 84}% confidence score</span>
+            <span className="text-2xl font-black text-purple-600 dark:text-purple-400 font-mono tracking-tight">{genomeData?.analytics?.predicted_expansion || '--'}</span>
+            <span className="text-xs font-bold flex items-center gap-1 text-purple-600 dark:text-purple-400">
+              <ArrowUpRight className="w-3 h-3" /> {genomeData?.analytics?.expansion_confidence || 0}% confidence score
+            </span>
           </div>
         </div>
       </div>

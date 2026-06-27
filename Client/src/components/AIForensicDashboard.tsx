@@ -66,14 +66,27 @@ export default function AIForensicDashboard({ onLogout, highContrast }: AIForens
     }, 2000);
   };
 
-  const handleCopilotSubmit = () => {
+  const handleCopilotSubmit = async () => {
     if (!copilotQuery.trim()) return;
     setIsCopilotLoading(true);
     setCopilotResponse("");
-    setTimeout(() => {
+    try {
+      if (showToast) showToast("Analyzing query across forensic databases...", "info");
+      const response = await fetch("/api/gemini/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: copilotQuery })
+      });
+      if (!response.ok) throw new Error("AI Failed");
+      const data = await response.json();
+      setCopilotResponse(data.reply || "No response received.");
+    } catch (error) {
+      console.error("Copilot Error:", error);
+      setCopilotResponse("Error: Unable to connect to Rakshak AI Copilot.");
+      if (showToast) showToast("Connection to Rakshak AI failed.", "error");
+    } finally {
       setIsCopilotLoading(false);
-      setCopilotResponse(`Rakshak AI Analysis for "${copilotQuery}": High probability matches found in Sector 4. Recommending immediate review of Network G12 connections.`);
-    }, 1500);
+    }
   };
 
   const handleCopilotExample = (text: string) => {

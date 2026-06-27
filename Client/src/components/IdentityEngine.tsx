@@ -35,12 +35,14 @@ export default function IdentityEngine({ highContrast, showToast }: IdentityEngi
   const [weight, setWeight] = useState("22 kg");
   const [features, setFeatures] = useState("Birthmark on left shoulder. Scars on right knee.");
   const [language, setLanguage] = useState("Speaks a mix of Hindi and an unidentified tribal dialect.");
-
+  const [microbiome, setMicrobiome] = useState("Unidentified trace");
+  const [nutrition, setNutrition] = useState("Unknown deficiency");
+  const [weave, setWeave] = useState("Unknown weave pattern");
   // Upload States
   const [uploadedPhotos, setUploadedPhotos] = useState<Array<{ id: string; name: string; url: string; size: string; progress: number; isCropped?: boolean }>>([]);
   const [uploadedVideos, setUploadedVideos] = useState<Array<{ id: string; name: string; size: string; progress: number }>>([]);
   const [uploadedDocs, setUploadedDocs] = useState<Array<{ id: string; name: string; type: 'FIR' | 'Medical' | 'Birth' | 'Other'; size: string; progress: number; ocrData?: any }>>([]);
-  const [voiceFile, setVoiceFile] = useState<{ name: string; size: string; isCleaned: boolean; progress: number } | null>(null);
+  const [voiceFile, setVoiceFile] = useState<{ file?: File; name: string; size: string; isCleaned: boolean; progress: number } | null>(null);
 
   // Voice Recorder States
   const [isRecording, setIsRecording] = useState(false);
@@ -97,16 +99,33 @@ export default function IdentityEngine({ highContrast, showToast }: IdentityEngi
 
   // Simulated audio cleaning
   const [isCleaningAudio, setIsCleaningAudio] = useState(false);
-  const handleCleanAudio = () => {
-    if (!voiceFile) return;
+  const handleCleanAudio = async () => {
+    if (!voiceFile || !voiceFile.file) return;
     setIsCleaningAudio(true);
-    addWsLog("Running AI spectral noise-reduction filters...", 'system');
-    setTimeout(() => {
+    addWsLog("Running AI spectral noise-reduction filters and IndicVoices ASR...", 'system');
+    
+    try {
+      const formData = new FormData();
+      formData.append("audio", voiceFile.file);
+      
+      const response = await fetch("/api/v1/ghost/analyze-voice", {
+        method: "POST",
+        body: formData
+      });
+      
+      const data = await response.json();
+      
       setVoiceFile(prev => prev ? { ...prev, isCleaned: true } : null);
-      setIsCleaningAudio(false);
-      addWsLog("Denoised audio blueprint generated. Target speech isolated.", 'system');
+      setLanguage(`Transcription: ${data.text_transcription} | Phonetics: ${data.phonetic_markers.join(", ")}`);
+      addWsLog(`Denoised audio blueprint generated. Target speech isolated: ${data.text_transcription}`, 'system');
       if (showToast) showToast("Audio noise isolated successfully.", "success");
-    }, 2000);
+    } catch (err) {
+      console.error(err);
+      addWsLog("Error analyzing audio.", 'system');
+      if (showToast) showToast("Error analyzing audio.", "error");
+    } finally {
+      setIsCleaningAudio(false);
+    }
   };
 
   // Simulated Face Crop
@@ -131,6 +150,9 @@ export default function IdentityEngine({ highContrast, showToast }: IdentityEngi
       setWeight("23 kg");
       setFeatures("Birthmark on left shoulder, small scar above left eyebrow.");
       setLanguage("Speaks a blend of Sadri and standard Santhali.");
+      setMicrobiome("High iron/laterite soil trace");
+      setNutrition("Protein energy malnutrition pattern (Stunting)");
+      setWeave("Santhal traditional check pattern thread fragments");
       addWsLog("Metadata successfully integrated into input parameters.", 'db');
       if (showToast) showToast("Police metadata package imported.", "success");
     }, 1000);
@@ -167,7 +189,7 @@ export default function IdentityEngine({ highContrast, showToast }: IdentityEngi
     addWsLog(`Uploading file: ${file.name} (${sizeStr})`, 'system');
 
     if (file.type.startsWith('image/')) {
-      const newPhoto = { id, name: file.name, url: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=256&h=256", size: sizeStr, progress: 0 };
+      const newPhoto = { id, name: file.name, url: URL.createObjectURL(file), file, size: sizeStr, progress: 0 };
       setUploadedPhotos(prev => [...prev, newPhoto]);
       simulateUploadProgress(file.name, (prog) => {
         setUploadedPhotos(prev => prev.map(p => p.id === id ? { ...p, progress: prog } : p));
@@ -201,7 +223,7 @@ export default function IdentityEngine({ highContrast, showToast }: IdentityEngi
         if (prog === 100) addWsLog(`Document OCR indexing complete for ${file.name}.`, 'system');
       });
     } else if (file.type.startsWith('audio/') || file.name.endsWith('.wav') || file.name.endsWith('.mp3')) {
-      setVoiceFile({ name: file.name, size: sizeStr, isCleaned: false, progress: 0 });
+      setVoiceFile({ file, name: file.name, size: sizeStr, isCleaned: false, progress: 0 });
       simulateUploadProgress(file.name, (prog) => {
         setVoiceFile(prev => prev ? { ...prev, progress: prog } : null);
         if (prog === 100) addWsLog(`Voice file ${file.name} mapped to biometric processor.`, 'system');
@@ -277,32 +299,54 @@ export default function IdentityEngine({ highContrast, showToast }: IdentityEngi
     // Call back-end API to register the completed reconstruction
     try {
       addWsLog("Querying core AI and compiling reconstruction dossier...", 'system');
-      const response = await fetch("/api/reconstruct", {
+      
+      const formData = new FormData();
+      formData.append("age", age);
+      formData.append("height", height);
+      formData.append("weight", weight);
+      formData.append("features", features);
+      formData.append("language", language);
+      formData.append("microbiome_markers", microbiome);
+      formData.append("nutrition_deficiency", nutrition);
+      formData.append("clothing_weave", weave);
+      
+      if (uploadedPhotos.length > 0 && uploadedPhotos[0].file) {
+        formData.append("photo", uploadedPhotos[0].file);
+      }
+
+      const response = await fetch("/api/v1/ghost/reconstruct", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          age,
-          height,
-          weight,
-          features,
-          language,
-          files: [
-            ...uploadedPhotos.map(p => p.name),
-            ...uploadedVideos.map(v => v.name),
-            ...uploadedDocs.map(d => d.name),
-            ...(voiceFile ? [voiceFile.name] : [])
-          ]
-        })
+        body: formData
       });
 
-      const data = await response.json();
-      if (data.reconstruction) {
-        setReconstructionResult(data.reconstruction);
-        addWsLog(`Reconstruction successfully completed. Target identified as ${data.reconstruction.reconstructedIdentity.possibleName}`, 'db');
-        if (showToast) showToast(`Identity Reconstructed: ${data.reconstruction.reconstructedIdentity.possibleName}`, "success");
+      if (!response.ok) {
+        let errorMsg = `Server returned ${response.status} ${response.statusText}`;
+        try {
+          const text = await response.text();
+          try {
+            const data = JSON.parse(text);
+            errorMsg = Array.isArray(data.detail) ? data.detail.map((e: any) => e.msg).join(", ") : (data.detail || "Reconstruction failed");
+          } catch (e) {
+            errorMsg = text || errorMsg;
+          }
+        } catch (e) {
+          // Ignore
+        }
+        if (showToast) showToast(errorMsg, "error");
+        addWsLog(`Reconstruction failed: ${errorMsg}`, 'system');
+        setIsAnalyzing(false);
+        return;
       }
-    } catch (err) {
+
+      const data = await response.json();
+      if (data && data.caseId) {
+        setReconstructionResult(data);
+        addWsLog(`Reconstruction successfully completed. Target identified as ${data.reconstructedIdentity.possibleName}`, 'db');
+        if (showToast) showToast(`Identity Reconstructed: ${data.reconstructedIdentity.possibleName}`, "success");
+      }
+    } catch (err: any) {
       console.error(err);
+      if (showToast) showToast(err.message || "An unexpected error occurred", "error");
       addWsLog("Error resolving API results, switching to high-fidelity procedural fallback", 'system');
     } finally {
       setIsAnalyzing(false);
@@ -602,6 +646,40 @@ export default function IdentityEngine({ highContrast, showToast }: IdentityEngi
                 <div className={`flex items-start gap-3 p-2.5 rounded-xl border focus-within:ring-2 ring-emerald-500/20 ${highContrast ? "border-stone-800" : "border-gray-200 bg-white dark:bg-stone-900"}`}>
                   <MessageSquare className={`w-4 h-4 mt-1 ${textSecondary}`} />
                   <textarea placeholder="Linguistic Sample Notes" value={language} onChange={e => setLanguage(e.target.value)} className={`flex-1 bg-transparent text-sm outline-none resize-none h-16 font-medium ${textMain}`}></textarea>
+                </div>
+              </div>
+              
+              <label className="text-[10px] font-black uppercase tracking-wider text-gray-500 block pt-2">Advanced Biological Markers</label>
+              <div className="space-y-3">
+                <div className={`flex items-center gap-3 p-2.5 rounded-xl border focus-within:ring-2 ring-emerald-500/20 ${highContrast ? "border-stone-800" : "border-gray-200 bg-white dark:bg-stone-900"}`}>
+                  <Database className={`w-4 h-4 ${textSecondary}`} />
+                  <select value={microbiome} onChange={e => setMicrobiome(e.target.value)} className={`flex-1 bg-transparent text-sm outline-none font-medium ${textMain}`}>
+                    <option value="Unidentified trace" className="text-black">Unidentified trace</option>
+                    <option value="High iron/laterite soil trace" className="text-black">High iron/laterite soil trace (Zone 4)</option>
+                    <option value="Red soil microbiome cluster" className="text-black">Red soil microbiome cluster</option>
+                    <option value="Alluvial soil pathogen signature" className="text-black">Alluvial soil pathogen signature</option>
+                    <option value="High moisture riverine bacterial trace" className="text-black">High moisture riverine bacterial trace</option>
+                  </select>
+                </div>
+                <div className={`flex items-center gap-3 p-2.5 rounded-xl border focus-within:ring-2 ring-emerald-500/20 ${highContrast ? "border-stone-800" : "border-gray-200 bg-white dark:bg-stone-900"}`}>
+                  <Activity className={`w-4 h-4 ${textSecondary}`} />
+                  <select value={nutrition} onChange={e => setNutrition(e.target.value)} className={`flex-1 bg-transparent text-sm outline-none font-medium ${textMain}`}>
+                    <option value="Unknown deficiency" className="text-black">Unknown deficiency</option>
+                    <option value="Chronic Vitamin B12 and Iron deficiency mapped to Zone 4" className="text-black">Chronic Vitamin B12 & Iron (Zone 4)</option>
+                    <option value="Protein energy malnutrition pattern (Stunting)" className="text-black">Protein energy malnutrition (Stunting)</option>
+                    <option value="Iodine deficiency indicators" className="text-black">Iodine deficiency indicators</option>
+                    <option value="Standard baseline nutrition (borderline anemia)" className="text-black">Standard baseline (borderline anemia)</option>
+                  </select>
+                </div>
+                <div className={`flex items-center gap-3 p-2.5 rounded-xl border focus-within:ring-2 ring-emerald-500/20 ${highContrast ? "border-stone-800" : "border-gray-200 bg-white dark:bg-stone-900"}`}>
+                  <Scissors className={`w-4 h-4 ${textSecondary}`} />
+                  <select value={weave} onChange={e => setWeave(e.target.value)} className={`flex-1 bg-transparent text-sm outline-none font-medium ${textMain}`}>
+                    <option value="Unknown weave pattern" className="text-black">Unknown weave pattern</option>
+                    <option value="Santhal traditional check pattern thread fragments" className="text-black">Santhal traditional check pattern</option>
+                    <option value="Coarse cotton weave typical of local handloom" className="text-black">Coarse cotton local handloom</option>
+                    <option value="Synthetic blend mass-produced in eastern hubs" className="text-black">Synthetic blend (Eastern Hubs)</option>
+                    <option value="Silk-cotton blended thread fragments" className="text-black">Silk-cotton blended thread</option>
+                  </select>
                 </div>
               </div>
             </div>

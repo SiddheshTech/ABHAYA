@@ -15,9 +15,6 @@ export interface UserProfile {
   emergencyContact?: string;
   bio?: string;
   avatarSeed?: string;
-}
-  bio?: string;
-  avatarSeed?: string;
   recoveryPrefs?: any;
   aiConfig?: any;
   privacyConfig?: any;

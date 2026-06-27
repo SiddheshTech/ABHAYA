@@ -1,10 +1,15 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const http = require('http');
+const { Server } = require('socket.io');
 const connectDB = require('./config/db');
 const apiRoutes = require('./routes/apiRoutes');
+const knowledgeRoutes = require('./routes/knowledgeRoutes');
 
 const app = express();
+const server = http.createServer(app);
+const io = new Server(server, { cors: { origin: '*' } });
 
 // Connect to Database
 connectDB().then(async () => {
@@ -14,6 +19,15 @@ connectDB().then(async () => {
     const Organization = require('./models/Organization');
     const Recovery = require('./models/Recovery');
     const MajorCase = require('./models/MajorCase');
+    
+    // Knowledge Vault models
+    const KnowledgeNode = require('./models/KnowledgeNode');
+    const KnowledgeEdge = require('./models/KnowledgeEdge');
+    const RecentIntel = require('./models/RecentIntel');
+    const SavedReport = require('./models/SavedReport');
+    const FavoriteCase = require('./models/FavoriteCase');
+    const Watchlist = require('./models/Watchlist');
+    const AISuggestion = require('./models/AISuggestion');
 
     const count = await State.countDocuments();
     if (count === 0) {
@@ -49,7 +63,35 @@ connectDB().then(async () => {
             { name: "Sighting Cluster Indore", priority: "Critical", status: "Operation Active" },
             { name: "Transit Pipeline Dhubri", priority: "High", status: "Under Surveillance" }
         ]);
-        console.log("Seed complete.");
+        console.log("Seed complete for core national command.");
+    }
+
+    const intelCount = await RecentIntel.countDocuments();
+    if (intelCount === 0) {
+        console.log("Seeding Knowledge Vault data...");
+        await KnowledgeNode.insertMany([
+            { id: "NODE-1", type: "suspect", name: "Raman Kalra", status: "ACTIVE", riskScore: 85, details: { role: "Kingpin" } },
+            { id: "NODE-2", type: "location", name: "Siliguri Transit", status: "MONITOR", riskScore: 92, details: { region: "West Bengal" } }
+        ]);
+        await KnowledgeEdge.insertMany([
+            { id: "EDGE-1", source: "NODE-1", target: "NODE-2", relationship: "operates_in", confidence: 95, strength: 88, details: {} }
+        ]);
+        await RecentIntel.insertMany([
+            { id: "INT-001", title: "New Syndicate Pattern Detected", category: "prediction", timestamp: new Date().toISOString(), officer: "AI CORE", status: "active", summary: "Graph model indicates structural shift." }
+        ]);
+        await SavedReport.insertMany([
+            { id: "REP-001", title: "Annual Trafficking Threat Assessment", type: "Strategic", author: "Dr. Smith Kadam", date: "2026-06-20", size: "4.2 MB", version: 1, status: "Approved", content: "Executive summary...", tags: ["Threat"] }
+        ]);
+        await FavoriteCase.insertMany([
+            { id: "CASE-992", title: "Operation Nightfall (Assam)", tags: ["Active", "High Priority"], priority: "CRITICAL", personalNotes: "Watch node 4 closely.", assignedOfficer: "Team Alpha", lastUpdated: "2h ago", timeline: [] }
+        ]);
+        await Watchlist.insertMany([
+            { id: "WATCH-1", type: "Vehicle", value: "MH-04-AB-1234", status: "MONITORING", addedDate: "2026-06-25", alertCount: 2, tags: ["Suspect Vehicle"], riskScore: 78 }
+        ]);
+        await AISuggestion.insertMany([
+            { id: "SUG-1", title: "Deploy drone surveillance at Sector 4", type: "Tactical", confidence: 94, why: "Recent activity spike correlates with historical transit patterns.", supportingEvidence: ["Cell tower pings", "Informant drop"], recommendedAction: "Activate drone squad Alpha", reasoning: "Minimize risk to ground units." }
+        ]);
+        console.log("Seed complete for Knowledge Vault.");
     }
 });
 
@@ -57,9 +99,16 @@ connectDB().then(async () => {
 app.use(cors());
 app.use(express.json());
 
+// Inject IO into requests
+app.use((req, res, next) => {
+    req.io = io;
+    next();
+});
+
 // Routes
 app.use('/api', apiRoutes);
+app.use('/api/knowledge', knowledgeRoutes);
 
 const PORT = process.env.PORT || 5002;
 
-app.listen(PORT, () => console.log(`National Command Server running on port ${PORT}`));
+server.listen(PORT, () => console.log(`National Command Server (with IO) running on port ${PORT}`));
