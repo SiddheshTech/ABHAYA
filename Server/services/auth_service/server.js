@@ -21,11 +21,18 @@ app.get('/health', (req, res) => {
 });
 
 // MongoDB Connection
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://rakshak_mongodb:27017/abhaya_auth';
+let MONGO_URI = process.env.MONGO_URI || 'mongodb://rakshak_mongodb:27017/abhaya_auth';
 
-mongoose.connect(MONGO_URI)
-  .then(() => {
-    console.log('Connected to MongoDB');
+const startServer = async () => {
+  if (MONGO_URI.includes('rakshak_mongodb')) {
+    const { MongoMemoryServer } = require('mongodb-memory-server');
+    const mongoServer = await MongoMemoryServer.create();
+    MONGO_URI = mongoServer.getUri();
+  }
+  
+  mongoose.connect(MONGO_URI)
+    .then(() => {
+      console.log('Connected to MongoDB');
     app.listen(PORT, () => {
       console.log(`Auth Service listening on port ${PORT}`);
     });
@@ -34,3 +41,5 @@ mongoose.connect(MONGO_URI)
     console.error('MongoDB connection error:', error);
     process.exit(1);
   });
+};
+startServer();

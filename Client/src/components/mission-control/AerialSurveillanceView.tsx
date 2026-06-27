@@ -16,6 +16,7 @@ import {
   Target
 } from "lucide-react";
 import { useToastStore } from "../../lib/store";
+import { useMissionStore } from "../../lib/missionStore";
 
 export default function AerialSurveillanceView({
   highContrast,
@@ -23,39 +24,34 @@ export default function AerialSurveillanceView({
   highContrast?: boolean;
 }) {
   const { addToast } = useToastStore();
-  const [activeDrone, setActiveDrone] = useState("UAV-ALPHA");
+  const { drones } = useMissionStore();
+  const [activeDroneId, setActiveDroneId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (drones.length > 0 && !activeDroneId) {
+      setActiveDroneId(drones[0].id);
+    }
+  }, [drones, activeDroneId]);
+
+  const activeDrone = drones.find(d => d.id === activeDroneId) || null;
+
   const [isThermal, setIsThermal] = useState(false);
   const [isScanning, setIsScanning] = useState(true);
   const [zoomLevel, setZoomLevel] = useState(4);
-  const [altitude, setAltitude] = useState(120);
   const [cameraAngle, setCameraAngle] = useState(45);
   const [noiseIntensity, setNoiseIntensity] = useState(0.08);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  // Simulation parameters
-  const [speed, setSpeed] = useState(42);
+  // Environmental simulation parameters
   const [wind, setWind] = useState(14);
-  const [battery, setBattery] = useState(88);
-  const [coordinates, setCoordinates] = useState({ lat: "26.7275° N", lon: "88.5958° E" });
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
     if (isScanning) {
       interval = setInterval(() => {
-        // Randomly drift coordinates slightly
-        setCoordinates((prev) => {
-          const latVal = parseFloat(prev.lat) + (Math.random() - 0.5) * 0.0005;
-          const lonVal = parseFloat(prev.lon) + (Math.random() - 0.5) * 0.0005;
-          return {
-            lat: `${latVal.toFixed(4)}° N`,
-            lon: `${lonVal.toFixed(4)}° E`,
-          };
-        });
-
-        // Fluctuations
+        // Environmental fluctuations
         setWind((prev) => Math.max(8, Math.min(25, prev + (Math.random() - 0.5) * 2)));
-        setBattery((prev) => Math.max(1, prev - 1));
       }, 3000);
     }
     return () => clearInterval(interval);
@@ -223,21 +219,9 @@ export default function AerialSurveillanceView({
     addToast(isThermal ? "Swapped to Optical Standard feed" : "Activated Thermal Heatwave infrared lookup", "info");
   };
 
-  const handleDroneShift = (name: string) => {
-    setActiveDrone(name);
-    if (name === "UAV-ALPHA") {
-      setAltitude(120);
-      setSpeed(42);
-      addToast("UAV Alpha feed established. Ground thermal array matching.", "success");
-    } else if (name === "UAV-BETA") {
-      setAltitude(250);
-      setSpeed(65);
-      addToast("UAV Beta high altitude thermal scope online.", "success");
-    } else {
-      setAltitude(85);
-      setSpeed(30);
-      addToast("Tactical K9 Air Drone link locked.", "success");
-    }
+  const handleDroneShift = (droneId: string, droneName: string) => {
+    setActiveDroneId(droneId);
+    addToast(`${droneName} feed established. Tactical link locked.`, "success");
   };
 
   const bgCardStyle = highContrast
@@ -265,19 +249,22 @@ export default function AerialSurveillanceView({
         </div>
 
         <div className="flex items-center gap-1.5 flex-wrap">
-          {["UAV-ALPHA", "UAV-BETA", "K9-DRONE-03"].map((drone) => (
+          {drones.map((drone) => (
             <button
-              key={drone}
-              onClick={() => handleDroneShift(drone)}
+              key={drone.id}
+              onClick={() => handleDroneShift(drone.id, drone.name)}
               className={`text-xs font-black px-3.5 py-1.5 rounded-lg border transition-all ${
-                activeDrone === drone
+                activeDroneId === drone.id
                   ? "bg-emerald-600 border-emerald-600 text-white shadow-md shadow-emerald-600/10"
                   : "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100 cursor-pointer"
               }`}
             >
-              {drone}
+              {drone.name}
             </button>
           ))}
+          {drones.length === 0 && (
+             <span className="text-xs font-bold text-gray-400">NO DRONES ACTIVE</span>
+          )}
         </div>
       </div>
 
@@ -311,8 +298,8 @@ export default function AerialSurveillanceView({
             </div>
 
             <div className="absolute top-4 right-4 z-10 bg-black/85 backdrop-blur-md px-3 py-2 rounded-xl text-white font-mono text-[10px] border border-white/15 flex flex-col gap-0.5">
-              <span className="text-gray-400">LATITUDE: <strong className="text-emerald-400">{coordinates.lat}</strong></span>
-              <span className="text-gray-400">LONGITUDE: <strong className="text-emerald-400">{coordinates.lon}</strong></span>
+              <span className="text-gray-400">LATITUDE: <strong className="text-emerald-400">{activeDrone?.location?.lat?.toFixed(4) || "0.0000"}° N</strong></span>
+              <span className="text-gray-400">LONGITUDE: <strong className="text-emerald-400">{activeDrone?.location?.lng?.toFixed(4) || "0.0000"}° E</strong></span>
               <span className="text-gray-400">HEADING: <strong className="text-yellow-400">284° WNW</strong></span>
             </div>
 
@@ -331,7 +318,7 @@ export default function AerialSurveillanceView({
               <div className="flex items-center gap-4">
                 <span className="flex items-center gap-1.5">
                   <Sliders className="w-4 h-4 text-emerald-600" />
-                  Altitude: <strong className="text-gray-900">{altitude}m</strong>
+                  Altitude: <strong className="text-gray-900">{activeDrone?.altitude || 0}m</strong>
                 </span>
                 <span className="flex items-center gap-1.5">
                   <Wind className="w-4 h-4 text-blue-500" />
@@ -339,7 +326,7 @@ export default function AerialSurveillanceView({
                 </span>
                 <span className="flex items-center gap-1.5">
                   <Battery className="w-4 h-4 text-emerald-500 animate-pulse" />
-                  UAV Battery: <strong className="text-gray-900">{battery}%</strong>
+                  UAV Battery: <strong className="text-gray-900">{activeDrone?.battery?.toFixed(1) || 0}%</strong>
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -364,12 +351,15 @@ export default function AerialSurveillanceView({
               <div>
                 <div className="flex justify-between mb-1 text-gray-800">
                   <span>Target Sweep Altitude (m)</span>
-                  <span>{altitude} m</span>
+                  <span>{activeDrone?.altitude || 0} m</span>
                 </div>
                 <input
                   type="range" min="50" max="350"
-                  value={altitude}
-                  onChange={(e) => setAltitude(Number(e.target.value))}
+                  value={activeDrone?.altitude || 120}
+                  onChange={(e) => {
+                     // Normally would send command via socket to update drone altitude
+                     addToast(`Requested altitude change to ${e.target.value}m`, "info");
+                  }}
                   className="w-full h-1.5 bg-gray-100 rounded-lg accent-emerald-600 cursor-pointer"
                 />
               </div>
@@ -442,7 +432,6 @@ export default function AerialSurveillanceView({
                 </p>
                 <button
                   onClick={() => {
-                    setCoordinates({ lat: "26.7291° N", lon: "88.5953° E" });
                     setZoomLevel(8);
                     addToast("AI Flight sweep coordinates dispatched. Camera locked to river crossing C.", "success");
                   }}

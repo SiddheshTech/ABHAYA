@@ -19,4 +19,10 @@ router.post('/reports', reportController.reportMissingChild);
 router.get('/profile/:id', profileController.getProfile);
 router.get('/impact/:id', profileController.getImpactDashboard);
 
+const cwDashController = require('../controllers/cwDashController');
+router.get('/cw/broadcasts', cwDashController.getBroadcasts);
+router.post('/cw/broadcasts', cwDashController.addBroadcast);
+router.get('/cw/patrols', cwDashController.getPatrols);
+router.get('/cw/incidents', cwDashController.getIncidents);
+
 module.exports = router;

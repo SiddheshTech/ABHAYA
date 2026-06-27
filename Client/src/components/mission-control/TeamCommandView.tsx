@@ -201,108 +201,9 @@ export default function TeamCommandView({
     } catch (e) {}
   };
 
-  // Seed default live tracking database-like telemetry
+  // Wait for real-time tracking from backend store
   useEffect(() => {
-    // Generate full-fidelity initial units
-    const defaultUnits: TacticalUnit[] = [
-      {
-        id: "unit-1",
-        name: "Team Alpha",
-        type: "team",
-        status: "On Mission",
-        location: { lat: 27.0375, lng: 88.4236 },
-        target: { lat: 27.0850, lng: 88.4810 },
-        battery: 85,
-        speed: 12.4,
-        heading: "042° NE",
-        altitude: 450,
-        signal: 94,
-        gpsAccuracy: 1.2,
-        distanceCovered: 4.8,
-        missionProgress: 65,
-        healthStatus: "Heart Rate: 84bpm (Optimal)",
-        eta: "8 mins",
-        trail: []
-      },
-      {
-        id: "unit-2",
-        name: "Team Bravo",
-        type: "team",
-        status: "On Mission",
-        location: { lat: 26.9850, lng: 88.3510 },
-        target: { lat: 27.0250, lng: 88.3990 },
-        battery: 92,
-        speed: 8.5,
-        heading: "115° ESE",
-        altitude: 320,
-        signal: 88,
-        gpsAccuracy: 1.8,
-        distanceCovered: 2.1,
-        missionProgress: 42,
-        healthStatus: "Heart Rate: 78bpm (Stable)",
-        eta: "14 mins",
-        trail: []
-      },
-      {
-        id: "unit-3",
-        name: "Air-1",
-        type: "drone",
-        status: "On Mission",
-        location: { lat: 27.1210, lng: 88.3912 },
-        target: { lat: 27.1850, lng: 88.4520 },
-        battery: 74,
-        speed: 58.0,
-        heading: "330° NNW",
-        altitude: 120,
-        signal: 97,
-        gpsAccuracy: 0.8,
-        distanceCovered: 14.5,
-        missionProgress: 78,
-        healthStatus: "RPM: 4200 (Nominal)",
-        eta: "4 mins",
-        trail: []
-      },
-      {
-        id: "unit-4",
-        name: "Air-2 Alpha",
-        type: "drone",
-        status: "En Route",
-        location: { lat: 27.0510, lng: 88.4590 },
-        target: { lat: 27.0910, lng: 88.4690 },
-        battery: 62,
-        speed: 45.2,
-        heading: "015° NNE",
-        altitude: 150,
-        signal: 91,
-        gpsAccuracy: 1.5,
-        distanceCovered: 8.4,
-        missionProgress: 35,
-        healthStatus: "RPM: 3900 (Nominal)",
-        eta: "11 mins",
-        trail: []
-      },
-      {
-        id: "unit-5",
-        name: "K9 Unit Delta",
-        type: "k9",
-        status: "En Route",
-        location: { lat: 26.9450, lng: 88.4820 },
-        target: { lat: 26.9920, lng: 88.4520 },
-        battery: 89,
-        speed: 15.0,
-        heading: "290° WNW",
-        altitude: 210,
-        signal: 84,
-        gpsAccuracy: 2.2,
-        distanceCovered: 5.6,
-        missionProgress: 50,
-        healthStatus: "Core Temp: 38.4°C (Normal)",
-        eta: "18 mins",
-        trail: []
-      }
-    ];
-    setTacticalUnits(defaultUnits);
-    unitsRef.current = defaultUnits;
+    // Initial sync will be handled by the store observer below
   }, []);
 
   // Continuous micro-movement interpolation (60 FPS smooth animation loop)
@@ -338,11 +239,8 @@ export default function TeamCommandView({
           const minsRemaining = Math.max(1, Math.round((dist * 100) / (u.type === "drone" ? 2 : 0.5)));
           nextEta = `${minsRemaining} mins`;
         } else {
-          // Reached target, set a new random search target in the sector boundary
-          nextTarget = {
-            lat: 26.92 + Math.random() * 0.28,
-            lng: 88.30 + Math.random() * 0.20
-          };
+          // Reached target, we will wait for backend to provide next target
+          nextEta = "Arrived";
         }
 
         // Increment distance and fluctuate battery level naturally
@@ -379,25 +277,51 @@ export default function TeamCommandView({
 
   // Web Socket state sync fallback with existing missionStore API data
   useEffect(() => {
-    if (storeTeams.length > 0 || storeDrones.length > 0) {
-      // Merge with our high-fidelity details so we don't drop extra parameters
-      const updated = unitsRef.current.map((local) => {
-        if (local.type === "team") {
-          const storeMatch = storeTeams.find((t) => t.name === local.name || t.id === local.id);
-          if (storeMatch) {
-            return { ...local, location: storeMatch.location };
-          }
-        } else if (local.type === "drone") {
-          const storeMatch = storeDrones.find((d) => d.name === local.name || d.id === local.id);
-          if (storeMatch) {
-            return { ...local, location: storeMatch.location, battery: storeMatch.battery || local.battery };
-          }
+    const activeUnitIds = new Set<string>();
+
+    const mergeStoreData = (storeArr: any[], unitType: "team" | "drone") => {
+      storeArr.forEach(item => {
+        activeUnitIds.add(item.id);
+        const existing = unitsRef.current.find(u => u.id === item.id);
+        if (existing) {
+           // Update target based on real-time server coordinates, interpolation will smoothly drive it there
+           existing.target = { lat: item.location.lat, lng: item.location.lng };
+           existing.battery = item.battery ?? existing.battery;
+           existing.status = item.status || "On Mission";
+        } else {
+           // Create new unit
+           unitsRef.current.push({
+             id: item.id,
+             name: item.name,
+             type: unitType,
+             status: item.status || "On Mission",
+             location: { lat: item.location.lat, lng: item.location.lng },
+             target: { lat: item.location.lat, lng: item.location.lng }, // Start at location
+             battery: item.battery ?? 100,
+             speed: unitType === "drone" ? 45 : 12,
+             heading: "N/A",
+             altitude: unitType === "drone" ? 150 : 0,
+             signal: 100,
+             gpsAccuracy: 1.0,
+             distanceCovered: 0,
+             missionProgress: 0,
+             healthStatus: "Nominal",
+             eta: "Calculating...",
+             trail: []
+           });
         }
-        return local;
       });
-      unitsRef.current = updated;
-      setTacticalUnits(updated);
+    };
+
+    if (storeTeams.length > 0) mergeStoreData(storeTeams, "team");
+    if (storeDrones.length > 0) mergeStoreData(storeDrones, "drone");
+
+    // Remove units that no longer exist in the backend
+    if (storeTeams.length > 0 || storeDrones.length > 0) {
+      unitsRef.current = unitsRef.current.filter(u => activeUnitIds.has(u.id));
     }
+
+    setTacticalUnits([...unitsRef.current]);
   }, [storeTeams, storeDrones]);
 
   // Canvas GIS map drawing routine

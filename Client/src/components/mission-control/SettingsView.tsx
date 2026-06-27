@@ -18,17 +18,25 @@ import {
   AlertTriangle,
   Save,
 } from "lucide-react";
-import { useAuthStore, useToastStore } from "../../lib/store";
+import { useAuthStore, useToastStore, useSystemStore } from "../../lib/store";
 
 export default function SettingsView({
   highContrast,
 }: {
   highContrast?: boolean;
 }) {
-  const { user } = useAuthStore();
+  const { user, sessions, updatePreferences, revokeSession, fetchSessions } = useAuthStore();
+  const { status, fetchStatus } = useSystemStore();
   const { addToast } = useToastStore();
   const [activeTab, setActiveTab] = useState("Profile");
   const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    fetchSessions();
+    fetchStatus();
+    const interval = setInterval(fetchStatus, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
   const bgCard = highContrast
     ? "bg-stone-900 border-stone-800"
@@ -117,7 +125,7 @@ export default function SettingsView({
                 <div className="flex items-center gap-6">
                   <div className="w-24 h-24 rounded-full bg-gray-200 dark:bg-stone-800 overflow-hidden border-4 border-white dark:border-stone-900 shadow-lg">
                     <img
-                      src="https://api.dicebear.com/7.x/avataaars/svg?seed=Commander"
+                      src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.name || "Commander"}`}
                       alt="Profile"
                       className="w-full h-full object-cover"
                     />
@@ -150,7 +158,7 @@ export default function SettingsView({
                     </label>
                     <input
                       type="text"
-                      defaultValue="Sarah Connor"
+                      defaultValue={user?.name || "Sarah Connor"}
                       className={`w-full p-2.5 rounded-xl border ${inputBg} text-sm focus:ring-2 focus:ring-emerald-500 outline-none transition-all ${textMain}`}
                     />
                   </div>
@@ -162,7 +170,7 @@ export default function SettingsView({
                     </label>
                     <input
                       type="text"
-                      defaultValue="OP-7734"
+                      defaultValue={`OP-${user?._id?.substring(0,6) || "7734"}`}
                       disabled
                       className={`w-full p-2.5 rounded-xl border ${inputBg} text-sm opacity-60 cursor-not-allowed ${textMain}`}
                     />
@@ -175,7 +183,7 @@ export default function SettingsView({
                     </label>
                     <input
                       type="text"
-                      defaultValue="Chief Commander"
+                      defaultValue={user?.role === "admin" ? "Chief Commander" : user?.role === "MC" ? "Mission Commander" : "Field Agent"}
                       className={`w-full p-2.5 rounded-xl border ${inputBg} text-sm focus:ring-2 focus:ring-emerald-500 outline-none transition-all ${textMain}`}
                     />
                   </div>
@@ -199,7 +207,7 @@ export default function SettingsView({
                     </label>
                     <input
                       type="email"
-                      defaultValue="commander@ops.gov"
+                      defaultValue={user?.email || "commander@ops.gov"}
                       className={`w-full p-2.5 rounded-xl border ${inputBg} text-sm focus:ring-2 focus:ring-emerald-500 outline-none transition-all ${textMain}`}
                     />
                   </div>
@@ -211,7 +219,7 @@ export default function SettingsView({
                     </label>
                     <input
                       type="tel"
-                      defaultValue="+1 (555) 019-2834"
+                      defaultValue={user?.phone || "+1 (555) 019-2834"}
                       className={`w-full p-2.5 rounded-xl border ${inputBg} text-sm focus:ring-2 focus:ring-emerald-500 outline-none transition-all ${textMain}`}
                     />
                   </div>
@@ -235,6 +243,8 @@ export default function SettingsView({
                       Theme
                     </label>
                     <select
+                      value={user?.preferences?.theme || 'System Default'}
+                      onChange={(e) => updatePreferences({ theme: e.target.value })}
                       className={`w-full p-2.5 rounded-xl border ${inputBg} text-sm focus:ring-2 focus:ring-emerald-500 outline-none transition-all ${textMain}`}
                     >
                       <option>System Default</option>
@@ -250,6 +260,8 @@ export default function SettingsView({
                       Language
                     </label>
                     <select
+                      value={user?.preferences?.language || 'English (US)'}
+                      onChange={(e) => updatePreferences({ language: e.target.value })}
                       className={`w-full p-2.5 rounded-xl border ${inputBg} text-sm focus:ring-2 focus:ring-emerald-500 outline-none transition-all ${textMain}`}
                     >
                       <option>English (US)</option>
@@ -264,6 +276,8 @@ export default function SettingsView({
                       Time Zone
                     </label>
                     <select
+                      value={user?.preferences?.timeZone || 'UTC (Coordinated Universal Time)'}
+                      onChange={(e) => updatePreferences({ timeZone: e.target.value })}
                       className={`w-full p-2.5 rounded-xl border ${inputBg} text-sm focus:ring-2 focus:ring-emerald-500 outline-none transition-all ${textMain}`}
                     >
                       <option>UTC (Coordinated Universal Time)</option>
@@ -278,6 +292,8 @@ export default function SettingsView({
                       Date & Time Format
                     </label>
                     <select
+                      value={user?.preferences?.dateFormat || 'YYYY-MM-DD (24hr)'}
+                      onChange={(e) => updatePreferences({ dateFormat: e.target.value })}
                       className={`w-full p-2.5 rounded-xl border ${inputBg} text-sm focus:ring-2 focus:ring-emerald-500 outline-none transition-all ${textMain}`}
                     >
                       <option>YYYY-MM-DD (24hr)</option>
@@ -291,7 +307,8 @@ export default function SettingsView({
                     >
                       <input
                         type="checkbox"
-                        defaultChecked
+                        checked={user?.preferences?.accessibility ?? true}
+                        onChange={(e) => updatePreferences({ accessibility: e.target.checked })}
                         className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500"
                       />
                       <div>
@@ -425,48 +442,47 @@ export default function SettingsView({
                   Active Sessions
                 </h4>
                 <div className="space-y-3">
-                  <div
-                    className={`p-3 rounded-xl border ${highContrast ? "border-stone-800" : "border-gray-200"} flex justify-between items-center`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <Monitor className={`w-5 h-5 ${textMuted}`} />
-                      <div>
-                        <p className={`text-sm font-bold ${textMain}`}>
-                          MacBook Pro 16"{" "}
-                          <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded ml-2">
-                            Current
-                          </span>
-                        </p>
-                        <p className={`text-xs ${textMuted}`}>
-                          San Francisco, CA • Safari • IP: 192.168.1.1
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                  <div
-                    className={`p-3 rounded-xl border ${highContrast ? "border-stone-800" : "border-gray-200"} flex justify-between items-center`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <Smartphone className={`w-5 h-5 ${textMuted}`} />
-                      <div>
-                        <p className={`text-sm font-bold ${textMain}`}>
-                          iPhone 14 Pro
-                        </p>
-                        <p className={`text-xs ${textMuted}`}>
-                          San Francisco, CA • iOS App • IP: 10.0.0.45
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        addToast("Session revoked successfully.", "success")
-                      }
-                      className="text-xs font-bold text-red-500 hover:text-red-600 transition-colors"
+                  {sessions.map((s) => (
+                    <div
+                      key={s._id}
+                      className={`p-3 rounded-xl border ${highContrast ? "border-stone-800" : "border-gray-200"} flex justify-between items-center`}
                     >
-                      Revoke
-                    </button>
-                  </div>
+                      <div className="flex items-center gap-3">
+                        {s.device.toLowerCase().includes('iphone') || s.device.toLowerCase().includes('android') ? 
+                          <Smartphone className={`w-5 h-5 ${textMuted}`} /> : 
+                          <Monitor className={`w-5 h-5 ${textMuted}`} />
+                        }
+                        <div>
+                          <p className={`text-sm font-bold ${textMain}`}>
+                            {s.device}
+                            {s.isCurrent && (
+                              <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded ml-2">
+                                Current
+                              </span>
+                            )}
+                          </p>
+                          <p className={`text-xs ${textMuted}`}>
+                            {s.location} • {s.browser} • IP: {s.ipAddress}
+                          </p>
+                        </div>
+                      </div>
+                      {!s.isCurrent && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            revokeSession(s._id);
+                            addToast("Session revoked successfully.", "success");
+                          }}
+                          className="text-xs font-bold text-red-500 hover:text-red-600 transition-colors"
+                        >
+                          Revoke
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  {sessions.length === 0 && (
+                    <div className="text-sm text-gray-500">Loading active sessions...</div>
+                  )}
                 </div>
               </div>
             )}
@@ -490,6 +506,8 @@ export default function SettingsView({
                       Current Role:{" "}
                       {user?.role === "admin"
                         ? "Global Administrator"
+                        : user?.role === "MC" 
+                        ? "Mission Commander"
                         : "Standard Operator"}
                     </h4>
                     <p
@@ -519,7 +537,7 @@ export default function SettingsView({
                         Primary
                       </span>
                       <span className={`block text-sm font-bold ${textMain}`}>
-                        Tactical Operations Div.
+                        {user?.assignedUnits?.primary || "Unassigned"}
                       </span>
                     </div>
                     <div
@@ -531,7 +549,7 @@ export default function SettingsView({
                         Secondary
                       </span>
                       <span className={`block text-sm font-bold ${textMain}`}>
-                        Emergency Response Team
+                        {user?.assignedUnits?.secondary || "Unassigned"}
                       </span>
                     </div>
                   </div>
@@ -548,42 +566,42 @@ export default function SettingsView({
                 </h3>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {[
+                  {status ? [
                     {
                       icon: Globe,
-                      label: "Network Routing",
-                      status: "Optimal",
-                      color: "text-emerald-500",
+                      label: status.network?.label || "Network Routing",
+                      status: status.network?.status || "Unknown",
+                      color: status.network?.status === 'Optimal' ? "text-emerald-500" : "text-red-500",
                     },
                     {
                       icon: Database,
-                      label: "Core Database",
-                      status: "Syncing",
-                      color: "text-blue-500",
+                      label: status.database?.label || "Core Database",
+                      status: status.database?.status || "Unknown",
+                      color: status.database?.status === 'Syncing' ? "text-blue-500" : "text-red-500",
                     },
                     {
                       icon: HardDrive,
-                      label: "Local Cache",
-                      status: "45% Used",
+                      label: status.cache?.label || "Local Cache",
+                      status: status.cache?.status || "Unknown",
                       color: "text-emerald-500",
                     },
                     {
                       icon: Wifi,
-                      label: "WebSocket",
-                      status: "Connected",
-                      color: "text-emerald-500",
+                      label: status.websocket?.label || "WebSocket",
+                      status: status.websocket?.status || "Unknown",
+                      color: status.websocket?.status === 'Connected' ? "text-emerald-500" : "text-red-500",
                     },
                     {
                       icon: Activity,
-                      label: "AI Engine API",
-                      status: "Operational",
+                      label: status.aiEngine?.label || "AI Engine API",
+                      status: status.aiEngine?.status || "Unknown",
                       color: "text-emerald-500",
                     },
                     {
                       icon: AlertTriangle,
-                      label: "Telemetry",
-                      status: "Warning: High Latency",
-                      color: "text-amber-500",
+                      label: status.telemetry?.label || "Telemetry",
+                      status: status.telemetry?.status || "Unknown",
+                      color: status.telemetry?.status === 'Optimal' ? "text-emerald-500" : "text-amber-500",
                     },
                   ].map((sys, i) => (
                     <div
@@ -597,19 +615,20 @@ export default function SettingsView({
                         ></div>
                       </div>
                       <div>
-                        <span
-                          className={`block text-[10px] font-bold uppercase tracking-wider ${textMuted}`}
-                        >
+                        <p className={`text-[10px] font-bold uppercase tracking-wider ${textMuted}`}>
                           {sys.label}
-                        </span>
-                        <span
-                          className={`block text-sm font-bold ${sys.color}`}
-                        >
+                        </p>
+                        <p className={`text-sm font-bold ${sys.color}`}>
                           {sys.status}
-                        </span>
+                        </p>
                       </div>
                     </div>
-                  ))}
+                  )) : (
+                    <div className="col-span-3 text-center p-8 text-gray-500">
+                       <Activity className="w-8 h-8 mx-auto mb-2 animate-spin" />
+                       Connecting to diagnostic sensors...
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex gap-4 mt-8">

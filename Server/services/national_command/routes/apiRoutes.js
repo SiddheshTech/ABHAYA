@@ -10,6 +10,8 @@ const blockchainService = require('../services/blockchain');
 // Command & Nation
 router.get('/command/dashboard', commandController.getDashboard);
 router.get('/nation/states', commandController.getStates);
+router.get('/command/recoveries', commandController.getRecoveries);
+router.get('/command/majorCases', commandController.getMajorCases);
 
 // Networks
 router.get('/genome/networks', networkController.getNetworks);

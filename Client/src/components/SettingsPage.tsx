@@ -13,103 +13,20 @@ interface SettingsPageProps {
   role?: string;
 }
 
-interface ActiveSession {
-  id: string;
-  device: string;
-  browser: string;
-  location: string;
-  ip: string;
-  active: boolean;
-  lastActive: string;
-}
+import { useSettingsStore } from '../lib/settingsStore';
 
-const roleProfilesData: Record<string, {
-  fullName: string;
-  employeeId: string;
-  badgeNumber: string;
-  rank: string;
-  organization: string;
-  department: string;
-  designation: string;
-  email: string;
-  phone: string;
-  emergencyContact: string;
-  bio: string;
-  avatarSeed: string;
-}> = {
-  CRC: {
-    fullName: "Inspector Kavita Rao",
-    employeeId: "EMP-CRC-2026",
-    badgeNumber: "AIF-84920",
-    rank: "Chief Inspector / Child Welfare CWO",
-    organization: "ABHAYA Mission Vatsalya Portal",
-    department: "Special Operations & Child Rehabilitation",
-    designation: "Lead Recovery Officer",
-    email: "k.rao@abhaya-crc.gov.in",
-    phone: "+91 98765 43210",
-    emergencyContact: "+91 99887 76655",
-    bio: "Dedicated child protection advocate and emergency rescue coordinator with over 8 years of experience in family tracking, shelter operations, and trauma-informed recovery interventions.",
-    avatarSeed: "Kavita"
-  },
-  CW: {
-    fullName: "Amit Patel",
-    employeeId: "EMP-CW-2026",
-    badgeNumber: "CWO-94812",
-    rank: "Community Watch Commander",
-    organization: "ABHAYA Bal Raksha Alliance",
-    department: "Community Liaison & Safety Watch",
-    designation: "Watch Coordinator",
-    email: "a.patel@abhaya-cw.org",
-    phone: "+91 91234 56789",
-    emergencyContact: "+91 99887 76655",
-    bio: "Active community lead and neighborhood watch organizer focused on child safety patrols, rapid missing child reporting, and public awareness campaigns.",
-    avatarSeed: "Amit"
-  },
-  ROS: {
-    fullName: "Sanjay Deshmukh",
-    employeeId: "EMP-ROS-2026",
-    badgeNumber: "SYS-00100",
-    rank: "Systems Administrator",
-    organization: "ABHAYA Code Corridor",
-    department: "Core Security Infrastructure",
-    designation: "Senior Infrastructure Engineer",
-    email: "s.deshmukh@abhaya-ros.gov.in",
-    phone: "+91 99887 76655",
-    emergencyContact: "+91 98765 43210",
-    bio: "Specialist in secured communication gateways, database integrations, and high-security child protection networks.",
-    avatarSeed: "Sanjay"
-  },
-  MC: {
-    fullName: "Director Rajesh Sinha",
-    employeeId: "EMP-MC-2026",
-    badgeNumber: "MC-7701",
-    rank: "Mission Control Director",
-    organization: "ABHAYA Command Headquarters",
-    department: "Tactical Operations & Intelligence",
-    designation: "Operations Commander",
-    email: "r.sinha@abhaya-mc.gov.in",
-    phone: "+91 93322 11000",
-    emergencyContact: "+91 99887 76655",
-    bio: "Command specialist leading strategic emergency deployments, geospatial intelligence analysis, and rapid crisis management protocols.",
-    avatarSeed: "Rajesh"
-  },
-  AIFL: {
-    fullName: "Dr. Smith Kadam",
-    employeeId: "EMP-AIFL-2026",
-    badgeNumber: "AIFL-025",
-    rank: "Chief Forensic Officer / Pathologist",
-    organization: "ABHAYA AI Forensic Lab",
-    department: "Digital Evidence & Genome Pattern Analysis",
-    designation: "Lab Director",
-    email: "smith.kadam@abhaya-aifl.gov.in",
-    phone: "+91 95544 33221",
-    emergencyContact: "+91 99887 76655",
-    bio: "Leading researcher in child welfare digital forensics, automated genome path analysis, and high-precision tactical tracking algorithms.",
-    avatarSeed: "Smith"
-  }
-};
+// Removed hardcoded roleProfilesData
 
 export default function SettingsPage({ highContrast, showToast, role }: SettingsPageProps) {
+  const { 
+    profile, preferences, sessions, securityLogs: storeSecurityLogs, passkeys: storePasskeys, systemMetrics: storeSystemMetrics, 
+    init, updateProfile, updatePreferences, revokeSession 
+  } = useSettingsStore();
+
+  useEffect(() => {
+    init();
+  }, [init]);
+
   const [activeTab, setActiveTab] = useState("Profile");
   
   // Theme & Styles
@@ -118,45 +35,43 @@ export default function SettingsPage({ highContrast, showToast, role }: Settings
   const textSecondary = highContrast ? "text-gray-400" : "text-gray-500 dark:text-stone-400";
   const borderClass = highContrast ? "border-stone-800" : "border-gray-200 dark:border-stone-800";
 
-  const initialProfile = role && roleProfilesData[role] ? roleProfilesData[role] : roleProfilesData.CRC;
-
   // 1. Profile State
-  const [profile, setProfile] = useState({
-    fullName: initialProfile.fullName,
-    employeeId: initialProfile.employeeId,
-    badgeNumber: initialProfile.badgeNumber,
-    rank: initialProfile.rank,
-    organization: initialProfile.organization,
-    department: initialProfile.department,
-    designation: initialProfile.designation,
-    email: initialProfile.email,
-    phone: initialProfile.phone,
-    emergencyContact: initialProfile.emergencyContact,
-    bio: initialProfile.bio
+  const [profileState, setProfileState] = useState({
+    fullName: "",
+    employeeId: "",
+    badgeNumber: "",
+    rank: "",
+    organization: "",
+    department: "",
+    designation: "",
+    email: "",
+    phone: "",
+    emergencyContact: "",
+    bio: ""
   });
 
   // Profile Image and Cropping
-  const [profileImage, setProfileImage] = useState(`https://api.dicebear.com/7.x/avataaars/svg?seed=${initialProfile.avatarSeed}`);
+  const [profileImage, setProfileImage] = useState(`https://api.dicebear.com/7.x/avataaars/svg?seed=Default`);
 
   useEffect(() => {
-    if (role && roleProfilesData[role]) {
-      const p = roleProfilesData[role];
-      setProfile({
-        fullName: p.fullName,
-        employeeId: p.employeeId,
-        badgeNumber: p.badgeNumber,
-        rank: p.rank,
-        organization: p.organization,
-        department: p.department,
-        designation: p.designation,
-        email: p.email,
-        phone: p.phone,
-        emergencyContact: p.emergencyContact,
-        bio: p.bio
+    if (profile) {
+      setProfileState({
+        fullName: profile.name || "",
+        employeeId: profileState.employeeId || "",
+        badgeNumber: profileState.badgeNumber || "",
+        rank: profile.rank || "",
+        organization: profile.organization || "",
+        department: profileState.department || "",
+        designation: profileState.designation || "",
+        email: profile.email || "",
+        phone: profile.phone || "",
+        emergencyContact: profile.emergencyContact || "",
+        bio: profile.bio || ""
       });
-      setProfileImage(`https://api.dicebear.com/7.x/avataaars/svg?seed=${p.avatarSeed}`);
+      setProfileImage(`https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.avatarSeed || profile.name}`);
     }
-  }, [role]);
+  }, [profile]);
+
   const [isCropModalOpen, setIsCropModalOpen] = useState(false);
   const [tempImage, setTempImage] = useState<string | null>(null);
   const [cropPosition, setCropPosition] = useState({ x: 50, y: 50, scale: 1 });
@@ -170,23 +85,15 @@ export default function SettingsPage({ highContrast, showToast, role }: Settings
   const [showCurrentPass, setShowCurrentPass] = useState(false);
   const [showNewPass, setShowNewPass] = useState(false);
   const [is2FaEnabled, setIs2FaEnabled] = useState(true);
-  const [passkeys, setPasskeys] = useState([
-    { id: "pk-1", name: "YubiKey 5C NFC", added: "2026-02-15" },
-    { id: "pk-2", name: "Windows Hello / Touch ID", added: "2026-04-10" }
-  ]);
-  const [sessions, setSessions] = useState<ActiveSession[]>([
-    { id: "sess-1", device: "MacBook Pro", browser: "Chrome", location: "New Delhi, India", ip: "192.168.1.1", active: true, lastActive: "Active Now" },
-    { id: "sess-2", device: "iPhone 14 Pro", browser: "Mobile Safari", location: "Mumbai, India", ip: "103.45.2.19", active: false, lastActive: "2 hours ago" },
-    { id: "sess-3", device: "Ubuntu Workstation", browser: "Firefox", location: "Bengaluru, India", ip: "157.45.190.22", active: false, lastActive: "Yesterday at 15:42" }
-  ]);
+  const [passkeys, setPasskeys] = useState(storePasskeys);
 
   const [securityLogsFilter, setSecurityLogsFilter] = useState("All");
-  const [securityLogs] = useState([
-    { id: "log-1", event: "Password changed successfully", time: "2026-06-25 11:30 AM", ip: "192.168.1.1", status: "Success", type: "Password" },
-    { id: "log-2", event: "New Device Registered (iPhone 14 Pro)", time: "2026-06-25 09:12 AM", ip: "103.45.2.19", status: "Success", type: "Device" },
-    { id: "log-3", event: "2FA authentication verification", time: "2026-06-25 08:00 AM", ip: "192.168.1.1", status: "Success", type: "MFA" },
-    { id: "log-4", event: "Failed login attempt (Wrong password)", time: "2026-06-24 10:15 PM", ip: "45.118.156.40", status: "Failed", type: "Auth" }
-  ]);
+  const [securityLogs, setSecurityLogs] = useState(storeSecurityLogs);
+
+  useEffect(() => {
+    setPasskeys(storePasskeys);
+    setSecurityLogs(storeSecurityLogs);
+  }, [storePasskeys, storeSecurityLogs]);
 
   // 3. Notification Settings State
   const [notificationConfig, setNotificationConfig] = useState({
@@ -214,8 +121,35 @@ export default function SettingsPage({ highContrast, showToast, role }: Settings
     accessibilityKeyboard: true
   });
 
+  useEffect(() => {
+    if (preferences) {
+      setNotificationConfig({
+        childRescueAlerts: preferences.alerts?.rescue ?? true,
+        emergencyAlerts: preferences.alerts?.emergency ?? true,
+        aiNotifications: preferences.alerts?.predictive ?? true,
+        familyMatchAlerts: preferences.alerts?.verification ?? true,
+        medicalAlerts: preferences.alerts?.medical ?? true,
+        shelterAlerts: preferences.alerts?.capacity ?? false,
+        wellnessAlerts: preferences.alerts?.psychological ?? true,
+        pushNotifications: preferences.routing?.browserPush ?? true,
+        emailNotifications: preferences.routing?.emailDigest ?? true,
+        smsNotifications: preferences.routing?.smsGateway ?? false,
+        desktopNotifications: preferences.routing?.localSystem ?? true
+      });
+      setAppearance({
+        theme: preferences.theme || "Light Mode",
+        fontSize: "Medium",
+        language: preferences.language || "English (US)",
+        timezone: preferences.timeZone || "UTC+05:30 (IST)",
+        dateFormat: preferences.dateFormat || "DD/MM/YYYY",
+        timeFormat: "24-hour",
+        accessibilityKeyboard: preferences.accessibility ?? true
+      });
+    }
+  }, [preferences]);
+
   // 5. Recovery Preferences State
-  const [recoveryPrefs, setRecoveryPrefs] = useState({
+  const [recoveryPrefs, setRecoveryPrefs] = useState(profile?.recoveryPrefs || {
     defaultDashboard: "Recovery Center",
     autoRefreshInterval: "30s",
     defaultSearchRadius: 50, // km
@@ -227,7 +161,7 @@ export default function SettingsPage({ highContrast, showToast, role }: Settings
   });
 
   // 6. AI Config State
-  const [aiConfig, setAiConfig] = useState({
+  const [aiConfig, setAiConfig] = useState(profile?.aiConfig || {
     recoveryAiEnabled: true,
     aiSuggestions: true,
     aiCaseSummaries: true,
@@ -238,12 +172,20 @@ export default function SettingsPage({ highContrast, showToast, role }: Settings
   });
 
   // 7. Data and Privacy State
-  const [privacyConfig, setPrivacyConfig] = useState({
+  const [privacyConfig, setPrivacyConfig] = useState(profile?.privacyConfig || {
     dataSharing: true,
     telemetryEnabled: false,
     autoBackup: true,
     backupFrequency: "Weekly"
   });
+
+  useEffect(() => {
+    if (profile) {
+      if (profile.recoveryPrefs) setRecoveryPrefs(profile.recoveryPrefs);
+      if (profile.aiConfig) setAiConfig(profile.aiConfig);
+      if (profile.privacyConfig) setPrivacyConfig(profile.privacyConfig);
+    }
+  }, [profile]);
 
   const [isBackupSpinnerActive, setIsBackupSpinnerActive] = useState(false);
 
@@ -261,7 +203,13 @@ export default function SettingsPage({ highContrast, showToast, role }: Settings
     isOnline: navigator.onLine
   });
 
-  // Auto Refresh Interval Timer
+  useEffect(() => {
+    if (storeSystemMetrics) {
+      setSystemMetrics(storeSystemMetrics);
+    }
+  }, [storeSystemMetrics]);
+
+  // Auto Refresh Interval Timer (mocking the live ping only, not mutating all metrics randomly anymore)
   useEffect(() => {
     const handleOnlineStatus = () => {
       setSystemMetrics(prev => ({ ...prev, isOnline: navigator.onLine }));
@@ -272,12 +220,7 @@ export default function SettingsPage({ highContrast, showToast, role }: Settings
     const interval = setInterval(() => {
       setSystemMetrics(prev => ({
         ...prev,
-        ping: Math.floor(Math.random() * 15) + 15,
-        activeTransactions: Math.max(1, prev.activeTransactions + Math.floor(Math.random() * 3) - 1),
-        wsPacketsSent: prev.wsPacketsSent + Math.floor(Math.random() * 4),
-        wsPacketsReceived: prev.wsPacketsReceived + Math.floor(Math.random() * 4),
-        aiLoad: Math.min(100, Math.max(5, prev.aiLoad + Math.floor(Math.random() * 5) - 2)),
-        aiRequestCount: prev.aiRequestCount + Math.floor(Math.random() * 2)
+        ping: Math.floor(Math.random() * 15) + 15
       }));
     }, 4000);
 
@@ -339,7 +282,7 @@ export default function SettingsPage({ highContrast, showToast, role }: Settings
 
   // Profile Auto-save Simulation
   const handleProfileFieldChange = (key: string, value: string) => {
-    setProfile(prev => ({ ...prev, [key]: value }));
+    setProfileState(prev => ({ ...prev, [key]: value }));
     if (autosaveEnabled) {
       // Simulate real-time backend updates
       const debounceTimeout = setTimeout(() => {
@@ -349,17 +292,34 @@ export default function SettingsPage({ highContrast, showToast, role }: Settings
     }
   };
 
-  const forceProfileSave = (e: React.FormEvent) => {
+  const forceProfileSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateEmail(profile.email)) {
+    if (!validateEmail(profileState.email)) {
       if (showToast) showToast("Invalid email address format.", "error");
       return;
     }
-    if (!validatePhone(profile.phone)) {
+    if (!validatePhone(profileState.phone)) {
       if (showToast) showToast("Invalid phone number format.", "error");
       return;
     }
-    if (showToast) showToast("Profile modifications saved permanently to central server.", "success");
+    try {
+      await updateProfile({
+        name: profileState.fullName,
+        email: profileState.email,
+        employeeId: profileState.employeeId,
+        badgeNumber: profileState.badgeNumber,
+        rank: profileState.rank,
+        organization: profileState.organization,
+        department: profileState.department,
+        designation: profileState.designation,
+        phone: profileState.phone,
+        emergencyContact: profileState.emergencyContact,
+        bio: profileState.bio
+      });
+      if (showToast) showToast("Profile modifications saved permanently to central server.", "success");
+    } catch (err) {
+      if (showToast) showToast("Failed to save profile.", "error");
+    }
   };
 
   // Password Security Logic
@@ -416,13 +376,17 @@ export default function SettingsPage({ highContrast, showToast, role }: Settings
   };
 
   // Session Revocation
-  const handleRevokeSession = (id: string) => {
-    setSessions(prev => prev.filter(s => s.id !== id));
+  const handleRevokeSession = async (id: string) => {
+    await revokeSession(id);
     if (showToast) showToast("Device token revoked. Session terminated.", "success");
   };
 
-  const handleRevokeAllOthers = () => {
-    setSessions(prev => prev.filter(s => s.active));
+  const handleRevokeAllOthers = async () => {
+    // In a real app we'd have a revokeAll endpoint
+    const otherSessions = sessions.filter(s => !s.isCurrent);
+    for (const s of otherSessions) {
+      await revokeSession(s.id);
+    }
     if (showToast) showToast("All other active platform logins have been terminated.", "success");
   };
 
@@ -442,7 +406,7 @@ export default function SettingsPage({ highContrast, showToast, role }: Settings
       const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({ profile, notificationConfig, appearance, recoveryPrefs, aiConfig, privacyConfig }, null, 2));
       const downloadAnchor = document.createElement('a');
       downloadAnchor.setAttribute("href", dataStr);
-      downloadAnchor.setAttribute("download", `Abhaya_User_Ledger_${profile.employeeId}.json`);
+      downloadAnchor.setAttribute("download", `Abhaya_User_Ledger_${profileState.employeeId}.json`);
       document.body.appendChild(downloadAnchor);
       downloadAnchor.click();
       downloadAnchor.remove();
@@ -467,7 +431,7 @@ export default function SettingsPage({ highContrast, showToast, role }: Settings
       reader.onload = (event) => {
         try {
           const parsed = JSON.parse(event.target?.result as string);
-          if (parsed.profile) setProfile(prev => ({ ...prev, ...parsed.profile }));
+          if (parsed.profile) setProfileState(prev => ({ ...prev, ...parsed.profile }));
           if (parsed.notificationConfig) setNotificationConfig(prev => ({ ...prev, ...parsed.parsed.notificationConfig }));
           if (parsed.appearance) setAppearance(prev => ({ ...prev, ...parsed.appearance }));
           if (showToast) showToast("System preferences and profile successfully imported.", "success");
@@ -574,11 +538,11 @@ export default function SettingsPage({ highContrast, showToast, role }: Settings
                 />
                 
                 <div className="text-center sm:text-left space-y-1">
-                  <h4 className={`text-lg font-extrabold ${textMain}`}>{profile.fullName}</h4>
-                  <p className={`text-xs font-semibold ${textSecondary}`}>{profile.designation} • {profile.department}</p>
+                  <h4 className={`text-lg font-extrabold ${textMain}`}>{profileState.fullName}</h4>
+                  <p className={`text-xs font-semibold ${textSecondary}`}>{profileState.designation} • {profileState.department}</p>
                   <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mt-1">
-                    <span className={`text-[10px] font-mono font-bold bg-stone-100 dark:bg-stone-800 ${textSecondary} px-2 py-0.5 rounded`}>ID: {profile.employeeId}</span>
-                    <span className={`text-[10px] font-mono font-bold bg-stone-100 dark:bg-stone-800 ${textSecondary} px-2 py-0.5 rounded`}>BADGE: {profile.badgeNumber}</span>
+                    <span className={`text-[10px] font-mono font-bold bg-stone-100 dark:bg-stone-800 ${textSecondary} px-2 py-0.5 rounded`}>ID: {profileState.employeeId}</span>
+                    <span className={`text-[10px] font-mono font-bold bg-stone-100 dark:bg-stone-800 ${textSecondary} px-2 py-0.5 rounded`}>BADGE: {profileState.badgeNumber}</span>
                   </div>
                   <p className="text-[10px] text-stone-400 italic pt-1">Accepts PNG/JPG. Automatic server-side verification.</p>
                 </div>
@@ -591,7 +555,7 @@ export default function SettingsPage({ highContrast, showToast, role }: Settings
                     <label className={`text-xs font-bold uppercase tracking-wider ${textSecondary}`}>Full Name</label>
                     <input 
                       type="text" 
-                      value={profile.fullName}
+                      value={profileState.fullName}
                       onChange={(e) => handleProfileFieldChange("fullName", e.target.value)}
                       className={`w-full px-4 py-2.5 rounded-xl border focus:outline-none focus:ring-2 focus:ring-[#115e3b] ${highContrast ? "bg-stone-800 border-stone-700 text-white" : "bg-gray-50 dark:bg-stone-950 border-gray-200 dark:border-stone-800 text-stone-900 dark:text-white"}`}
                     />
@@ -602,7 +566,7 @@ export default function SettingsPage({ highContrast, showToast, role }: Settings
                       <label className={`text-xs font-bold uppercase tracking-wider ${textSecondary}`}>Employee ID</label>
                       <input 
                         type="text" 
-                        value={profile.employeeId}
+                        value={profileState.employeeId}
                         disabled
                         className="w-full px-4 py-2.5 rounded-xl border opacity-60 cursor-not-allowed bg-gray-100 dark:bg-stone-800/30 text-stone-500 border-gray-200 dark:border-stone-800"
                       />
@@ -611,7 +575,7 @@ export default function SettingsPage({ highContrast, showToast, role }: Settings
                       <label className={`text-xs font-bold uppercase tracking-wider ${textSecondary}`}>Badge Number</label>
                       <input 
                         type="text" 
-                        value={profile.badgeNumber}
+                        value={profileState.badgeNumber}
                         disabled
                         className="w-full px-4 py-2.5 rounded-xl border opacity-60 cursor-not-allowed bg-gray-100 dark:bg-stone-800/30 text-stone-500 border-gray-200 dark:border-stone-800"
                       />
@@ -622,7 +586,7 @@ export default function SettingsPage({ highContrast, showToast, role }: Settings
                     <label className={`text-xs font-bold uppercase tracking-wider ${textSecondary}`}>Service Rank</label>
                     <input 
                       type="text" 
-                      value={profile.rank}
+                      value={profileState.rank}
                       onChange={(e) => handleProfileFieldChange("rank", e.target.value)}
                       className={`w-full px-4 py-2.5 rounded-xl border focus:outline-none focus:ring-2 focus:ring-[#115e3b] ${highContrast ? "bg-stone-800 border-stone-700 text-white" : "bg-gray-50 dark:bg-stone-950 border-gray-200 dark:border-stone-800 text-stone-900 dark:text-white"}`}
                     />
@@ -632,7 +596,7 @@ export default function SettingsPage({ highContrast, showToast, role }: Settings
                     <label className={`text-xs font-bold uppercase tracking-wider ${textSecondary}`}>Affiliated Organization</label>
                     <input 
                       type="text" 
-                      value={profile.organization}
+                      value={profileState.organization}
                       onChange={(e) => handleProfileFieldChange("organization", e.target.value)}
                       className={`w-full px-4 py-2.5 rounded-xl border focus:outline-none focus:ring-2 focus:ring-[#115e3b] ${highContrast ? "bg-stone-800 border-stone-700 text-white" : "bg-gray-50 dark:bg-stone-950 border-gray-200 dark:border-stone-800 text-stone-900 dark:text-white"}`}
                     />
@@ -642,7 +606,7 @@ export default function SettingsPage({ highContrast, showToast, role }: Settings
                     <label className={`text-xs font-bold uppercase tracking-wider ${textSecondary}`}>Assigned Department</label>
                     <input 
                       type="text" 
-                      value={profile.department}
+                      value={profileState.department}
                       onChange={(e) => handleProfileFieldChange("department", e.target.value)}
                       className={`w-full px-4 py-2.5 rounded-xl border focus:outline-none focus:ring-2 focus:ring-[#115e3b] ${highContrast ? "bg-stone-800 border-stone-700 text-white" : "bg-gray-50 dark:bg-stone-950 border-gray-200 dark:border-stone-800 text-stone-900 dark:text-white"}`}
                     />
@@ -652,7 +616,7 @@ export default function SettingsPage({ highContrast, showToast, role }: Settings
                     <label className={`text-xs font-bold uppercase tracking-wider ${textSecondary}`}>Official Designation</label>
                     <input 
                       type="text" 
-                      value={profile.designation}
+                      value={profileState.designation}
                       onChange={(e) => handleProfileFieldChange("designation", e.target.value)}
                       className={`w-full px-4 py-2.5 rounded-xl border focus:outline-none focus:ring-2 focus:ring-[#115e3b] ${highContrast ? "bg-stone-800 border-stone-700 text-white" : "bg-gray-50 dark:bg-stone-950 border-gray-200 dark:border-stone-800 text-stone-900 dark:text-white"}`}
                     />
@@ -662,7 +626,7 @@ export default function SettingsPage({ highContrast, showToast, role }: Settings
                     <label className={`text-xs font-bold uppercase tracking-wider ${textSecondary}`}>Official Email Address</label>
                     <input 
                       type="email" 
-                      value={profile.email}
+                      value={profileState.email}
                       onChange={(e) => handleProfileFieldChange("email", e.target.value)}
                       className={`w-full px-4 py-2.5 rounded-xl border focus:outline-none focus:ring-2 focus:ring-[#115e3b] ${highContrast ? "bg-stone-800 border-stone-700 text-white" : "bg-gray-50 dark:bg-stone-950 border-gray-200 dark:border-stone-800 text-stone-900 dark:text-white"}`}
                     />
@@ -673,7 +637,7 @@ export default function SettingsPage({ highContrast, showToast, role }: Settings
                       <label className={`text-xs font-bold uppercase tracking-wider ${textSecondary}`}>Phone Number</label>
                       <input 
                         type="text" 
-                        value={profile.phone}
+                        value={profileState.phone}
                         onChange={(e) => handleProfileFieldChange("phone", e.target.value)}
                         className={`w-full px-4 py-2.5 rounded-xl border focus:outline-none focus:ring-2 focus:ring-[#115e3b] ${highContrast ? "bg-stone-800 border-stone-700 text-white" : "bg-gray-50 dark:bg-stone-950 border-gray-200 dark:border-stone-800 text-stone-900 dark:text-white"}`}
                       />
@@ -682,7 +646,7 @@ export default function SettingsPage({ highContrast, showToast, role }: Settings
                       <label className={`text-xs font-bold uppercase tracking-wider ${textSecondary}`}>Emergency Contact</label>
                       <input 
                         type="text" 
-                        value={profile.emergencyContact}
+                        value={profileState.emergencyContact}
                         onChange={(e) => handleProfileFieldChange("emergencyContact", e.target.value)}
                         className={`w-full px-4 py-2.5 rounded-xl border focus:outline-none focus:ring-2 focus:ring-[#115e3b] ${highContrast ? "bg-stone-800 border-stone-700 text-white" : "bg-gray-50 dark:bg-stone-950 border-gray-200 dark:border-stone-800 text-stone-900 dark:text-white"}`}
                       />
@@ -694,7 +658,7 @@ export default function SettingsPage({ highContrast, showToast, role }: Settings
                   <label className={`text-xs font-bold uppercase tracking-wider ${textSecondary}`}>Personal Biography / Professional Summary</label>
                   <textarea 
                     rows={3}
-                    value={profile.bio}
+                    value={profileState.bio}
                     onChange={(e) => handleProfileFieldChange("bio", e.target.value)}
                     className={`w-full px-4 py-2.5 rounded-xl border resize-none focus:outline-none focus:ring-2 focus:ring-[#115e3b] ${highContrast ? "bg-stone-800 border-stone-700 text-white" : "bg-gray-50 dark:bg-stone-950 border-gray-200 dark:border-stone-800 text-stone-900 dark:text-white"}`}
                   />

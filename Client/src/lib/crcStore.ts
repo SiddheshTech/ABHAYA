@@ -98,34 +98,10 @@ export const useCRCStore = create<CRCState>((set, get) => ({
   successRate: 94,
   urgentCases: 0,
 
-  priorityQueue: [
-    { label: "New Rescues", count: 8, type: "emerald" },
-    { label: "Medical Priority", count: 3, type: "red" },
-    { label: "Awaiting Verification", count: 12, type: "yellow" },
-    { label: "Pending Family Match", count: 5, type: "blue" },
-  ],
-
-  recoveryPipeline: [
-    { stage: "Rescued", active: true, count: 24 },
-    { stage: "Recovering", active: true, count: 45 },
-    { stage: "Verified", active: true, count: 18 },
-    { stage: "Family Matched", active: false, count: 5 },
-    { stage: "Reintegrated", active: false, count: 12 },
-  ],
-
-  schedule: [
-    { label: "Upcoming Counselling", time: "10:00 AM", iconName: "Heart" },
-    { label: "Family Interviews", time: "11:30 AM", iconName: "Users" },
-    { label: "Health Reviews", time: "02:00 PM", iconName: "Activity" },
-    { label: "AI Welfare Alerts", time: "04:15 PM", iconName: "Shield" },
-  ],
-
-  dailyBrief: [
-    { value: "12", label: "Rehabilitated" },
-    { value: "4", label: "Matches Found" },
-    { value: "2", label: "Escalations" },
-    { value: "8", label: "Sessions" },
-  ],
+  priorityQueue: [],
+  recoveryPipeline: [],
+  schedule: [],
+  dailyBrief: [],
 
   childrenList: [],
   sheltersList: [],
@@ -180,7 +156,11 @@ export const useCRCStore = create<CRCState>((set, get) => ({
         familyMatches: statsData.familyMatches,
         medicalCases: statsData.medicalCases,
         urgentCases: statsData.urgentCases,
-        successRate: statsData.successRate
+        successRate: statsData.successRate,
+        priorityQueue: statsData.priorityQueue || [],
+        recoveryPipeline: statsData.recoveryPipeline || [],
+        schedule: statsData.schedule || [],
+        dailyBrief: statsData.dailyBrief || []
       });
 
       const socket = io();
@@ -200,7 +180,11 @@ export const useCRCStore = create<CRCState>((set, get) => ({
           familyMatches: stats.familyMatches,
           medicalCases: stats.medicalCases,
           urgentCases: stats.urgentCases,
-          successRate: stats.successRate
+          successRate: stats.successRate,
+          priorityQueue: stats.priorityQueue || [],
+          recoveryPipeline: stats.recoveryPipeline || [],
+          schedule: stats.schedule || [],
+          dailyBrief: stats.dailyBrief || []
         });
       });
 

@@ -4,6 +4,7 @@ import {
   ChevronRight, Bell, Search, ArrowUpRight, TrendingUp, Radio, AlertTriangle, 
   Sparkles, Layers, Info, Check, Eye
 } from "lucide-react";
+import { useRosStore } from "../../lib/rosStore";
 
 interface NationalCommandViewProps {
   highContrast?: boolean;
@@ -13,6 +14,21 @@ export default function NationalCommandView({ highContrast }: NationalCommandVie
   // Layers state
   const [activeLayer, setActiveLayer] = useState<"Safe" | "Watchlist" | "HighRisk" | "ActiveRescue" | "NetworkClusters" | "Emergency" | "All">("All");
   const [searchQuery, setSearchQuery] = useState("");
+  const { 
+    dashboard: liveMetricsFromStore, 
+    recoveries: recentRecoveries, 
+    majorCases, 
+    states: stateRankings, 
+    organizations: topTeams, 
+    predictions, 
+    networks: networkMutations,
+    fetchRosData 
+  } = useRosStore();
+
+  useEffect(() => {
+    fetchRosData();
+  }, [fetchRosData]);
+
   const [liveMetrics, setLiveMetrics] = useState({
     missing: 481,
     recovered: 3819,
@@ -23,66 +39,23 @@ export default function NationalCommandView({ highContrast }: NationalCommandVie
     threatIndex: "M-4"
   });
 
-  // Cycle real-time indicators just to feel absolutely alive
   useEffect(() => {
-    const interval = setInterval(() => {
-      setLiveMetrics(prev => {
-        const delta = Math.random() > 0.5 ? 1 : -1;
-        const newMissing = Math.max(470, prev.missing + delta);
-        const newRecovered = prev.recovered + (Math.random() > 0.8 ? 1 : 0);
-        return {
-          ...prev,
-          missing: newMissing,
-          recovered: newRecovered,
-          activeSearches: Math.max(120, prev.activeSearches + (Math.random() > 0.7 ? delta : 0))
-        };
+    if (liveMetricsFromStore) {
+      setLiveMetrics({
+        missing: liveMetricsFromStore.missingChildren,
+        recovered: liveMetricsFromStore.recoveredChildren,
+        networks: liveMetricsFromStore.networksDetected,
+        riskDistricts: liveMetricsFromStore.riskDistricts,
+        activeSearches: liveMetricsFromStore.activeSearches,
+        successRate: liveMetricsFromStore.rescueSuccessRate,
+        threatIndex: liveMetricsFromStore.threatIndex
       });
-    }, 4000);
-    return () => clearInterval(interval);
-  }, []);
+    }
+  }, [liveMetricsFromStore]);
 
-  const bgCard = highContrast ? "bg-stone-950 border-stone-800" : "bg-stone-900/95 border-stone-800 text-stone-100";
-  const borderCol = highContrast ? "border-stone-850" : "border-stone-800/80";
-  const textMain = highContrast ? "text-yellow-300" : "text-white";
-  const textMuted = highContrast ? "text-stone-400" : "text-stone-400 font-mono text-[11px]";
-
-  // Left panel: National Activity
-  const recentRecoveries = [
-    { child: "Aarav Sharma", sector: "Delhi Sector 3", status: "Verified", time: "12m ago" },
-    { child: "Priya Murmu", sector: "Jharkhand Hub", status: "Transited to Shelter", time: "2h ago" },
-    { child: "Aditya Verma", sector: "UP Central Corridor", status: "Reunified", time: "4h ago" }
-  ];
-
-  const majorCases = [
-    { name: "Sighting Cluster Indore", priority: "Critical", status: "Operation Active" },
-    { name: "Transit Pipeline Dhubri", priority: "High", status: "Under Surveillance" }
-  ];
-
-  const stateRankings = [
-    { state: "Delhi-NCR", rate: "96.4%", time: "9m latency" },
-    { state: "Tamil Nadu", rate: "95.0%", time: "12m latency" },
-    { state: "Maharashtra", rate: "94.2%", time: "14m latency" }
-  ];
-
-  const topTeams = [
-    { team: "DCPU-West-02", lead: "CWO Deshmukh", cases: "48 solved" },
-    { team: "CRC-North-04", lead: "Insp Kavita Rao", cases: "39 solved" }
-  ];
-
-  // Right panel: National Intelligence
-  const migrationRisks = [
-    { sector: "Assam Borders", index: "High Risk", trend: "Rising (3 weeks)" },
-    { sector: "North Bihar Plain", index: "Medium Risk", trend: "Stable" }
-  ];
-
-  const networkMutations = [
-    { name: "Cluster G12 Syndicate", type: "Hub-and-Spoke", alert: "Expanding toward Pune" }
-  ];
-
-  const predictedHotspots = [
-    { region: "Patna Junction Overpass", confidence: "87%", timeline: "End of June" },
-    { region: "Howrah Terminal Platform 9", confidence: "79%", timeline: "Next 14 Days" }
-  ];
+  // Derive predictions
+  const migrationRisks = predictions.map(p => ({ sector: p.targetState, index: p.riskFactors?.migrationRisk || 'Unknown', trend: p.forecastPeriod }));
+  const predictedHotspots = predictions.map(p => ({ region: p.targetState, confidence: `${p.confidenceScore}%`, timeline: p.forecastPeriod }));
 
   // Interactive Layer Configurations for the Map Nodes
   const layers = [
@@ -167,7 +140,7 @@ export default function NationalCommandView({ highContrast }: NationalCommandVie
               </h4>
               <div className="space-y-2">
                 {recentRecoveries.map((r, i) => (
-                  <div key={i} className="p-2.5 bg-stone-950/50 rounded-xl border border-stone-900 flex justify-between items-center text-xs">
+                  <div key={r._id || i} className="p-2.5 bg-stone-950/50 rounded-xl border border-stone-900 flex justify-between items-center text-xs">
                     <div>
                       <p className="font-bold text-stone-200">{r.child}</p>
                       <p className="text-[10px] text-stone-500 font-mono">{r.sector}</p>
@@ -198,15 +171,14 @@ export default function NationalCommandView({ highContrast }: NationalCommandVie
             <div className="space-y-2.5 pt-2 border-t border-stone-900">
               <h4 className="text-[11px] font-bold text-stone-400 uppercase tracking-widest">State Response Rankings</h4>
               <div className="space-y-2">
-                {stateRankings.map((sr, i) => (
-                  <div key={i} className="flex items-center justify-between text-xs">
-                    <span className="text-stone-500 font-mono text-[10px]">0{i+1}. <span className="text-stone-300 font-bold">{sr.state}</span></span>
-                    <div className="flex gap-2 font-mono text-[10px]">
-                      <span className="text-emerald-400 font-bold">{sr.rate}</span>
-                      <span className="text-stone-500">({sr.time})</span>
-                    </div>
+                {stateRankings.map((st, i) => (
+                <div key={st._id || i} className="flex items-center justify-between p-3 rounded-lg hover:bg-stone-800 transition-colors">
+                  <span className={`text-sm font-bold ${textMain}`}>{st.name}</span>
+                  <div className="text-right">
+                    <p className={`text-sm font-bold text-emerald-400`}>{(st.recoveredCases / Math.max(1, st.missingCases) * 100).toFixed(1)}%</p>
                   </div>
-                ))}
+                </div>
+              ))}
               </div>
             </div>
 
@@ -375,13 +347,13 @@ export default function NationalCommandView({ highContrast }: NationalCommandVie
             <div className="space-y-2 pt-2 border-t border-stone-900">
               <h4 className="text-[11px] font-bold text-stone-400 uppercase tracking-widest">Network Mutation Alerts</h4>
               {networkMutations.map((nm, i) => (
-                <div key={i} className="p-2.5 bg-stone-950/50 rounded-xl border border-purple-950/50 text-xs space-y-1">
+                <div key={nm._id || i} className="p-2.5 bg-stone-950/50 rounded-xl border border-purple-950/50 text-xs space-y-1">
                   <div className="flex justify-between items-center">
-                    <span className="font-bold text-purple-400 font-mono">{nm.name}</span>
-                    <span className="text-[9px] bg-purple-950/50 text-purple-400 px-1.5 py-0.5 rounded border border-purple-900">MUTATION</span>
+                    <span className="font-bold text-purple-400 font-mono">{nm.clusterId}</span>
+                    <span className="text-[9px] bg-purple-950/50 text-purple-400 px-1.5 py-0.5 rounded border border-purple-900">{nm.threatLevel}</span>
                   </div>
-                  <p className="text-[10px] text-stone-400 font-mono">Structure: {nm.type}</p>
-                  <p className="text-[10px] text-stone-500 font-semibold">{nm.alert}</p>
+                  <p className="text-[10px] text-stone-400 font-mono">Structure: {nm.growthStatus}</p>
+                  <p className="text-[10px] text-stone-500 font-semibold">{nm.threatLevel}</p>
                 </div>
               ))}
             </div>

@@ -41,7 +41,9 @@ import {
   RefreshCw,
   X,
 } from "lucide-react";
-import { useToastStore } from "../../lib/store";
+import { useToastStore, useMissionStore } from "../../lib/store";
+import { useApiStore } from "../../lib/apiStore";
+import { useMissionStore as useLocalMissionStore } from "../../lib/missionStore";
 
 // Types
 interface CaseRecord {
@@ -93,65 +95,7 @@ interface CustomParams {
   dayNight: string;
 }
 
-// Global cases registry for autocomplete & real-time search
-const CASES_REGISTRY: CaseRecord[] = [
-  {
-    id: "CASE-9481",
-    name: "Aarav Sharma",
-    guardian: "Manish Sharma",
-    missionId: "MSN-204",
-    coords: { x: 500, y: 500 },
-    gpsLabel: "22.5726, 88.3639",
-    region: "Indore Sector 4",
-    incidentType: "Runaway Minor",
-    searchZone: "Zone-B River Corridor",
-    officer: "Kavita Rao",
-    lastSeenTime: "4 hours ago",
-    defaultProfile: "Runaway",
-  },
-  {
-    id: "CASE-3081",
-    name: "Rohan Das",
-    guardian: "Meera Das",
-    missionId: "MSN-301",
-    coords: { x: 480, y: 460 },
-    gpsLabel: "19.0760, 72.8777",
-    region: "Pune Transit Ring",
-    incidentType: "Autism Wandering",
-    searchZone: "Zone-A Dense Urban",
-    officer: "Sanjay Deshmukh",
-    lastSeenTime: "2 hours ago",
-    defaultProfile: "Autism",
-  },
-  {
-    id: "CASE-4412",
-    name: "Ananya Sen",
-    guardian: "Amit Sen",
-    missionId: "MSN-105",
-    coords: { x: 520, y: 510 },
-    gpsLabel: "28.6139, 77.2090",
-    region: "Delhi West Parks",
-    incidentType: "Lost Toddler",
-    searchZone: "Zone-C Playgrounds",
-    officer: "Rakesh Verma",
-    lastSeenTime: "1 hour ago",
-    defaultProfile: "Toddler",
-  },
-  {
-    id: "CASE-5920",
-    name: "Preeti Patel",
-    guardian: "Rajesh Patel",
-    missionId: "MSN-411",
-    coords: { x: 550, y: 480 },
-    gpsLabel: "23.0225, 72.5714",
-    region: "Ahmedabad Hub",
-    incidentType: "Special Needs Wandering",
-    searchZone: "Zone-D Railway Zone",
-    officer: "Neha Singh",
-    lastSeenTime: "6 hours ago",
-    defaultProfile: "Special Needs",
-  },
-];
+// Dynamic cases registry will be generated inside the component
 
 const LANDMARKS: Landmark[] = [
   { name: "Sankalp Safe Shelter", type: "Safe Zone", x: 800, y: 400 },
@@ -165,9 +109,35 @@ const LANDMARKS: Landmark[] = [
 export default function CognitiveHeatmapsView({ highContrast }: { highContrast?: boolean }) {
   const { addToast } = useToastStore();
 
+  const { children } = useApiStore();
+  const { teams } = useLocalMissionStore();
+
+  const casesRegistry = React.useMemo(() => {
+    return children.filter(c => c.status === "Missing").map(c => ({
+      id: c.id || "CASE-000",
+      name: c.name || "Unknown",
+      guardian: c.guardianName || "Unknown",
+      missionId: "MSN-XXX",
+      coords: { x: 500 + (Math.random()*40-20), y: 500 + (Math.random()*40-20) }, // Approximate mapped coords
+      gpsLabel: c.lastSeenLocation || "Unknown",
+      region: "Sector",
+      incidentType: c.status || "Missing",
+      searchZone: "Zone",
+      officer: "Officer",
+      lastSeenTime: c.lastSeenDate ? new Date(c.lastSeenDate).toLocaleDateString() : "Unknown",
+      defaultProfile: "Runaway"
+    }));
+  }, [children]);
+
   // State managers
   const [activeProfile, setActiveProfile] = useState<string>("Autism");
-  const [selectedCase, setSelectedCase] = useState<CaseRecord>(CASES_REGISTRY[0]);
+  const [selectedCase, setSelectedCase] = useState<CaseRecord | null>(null);
+
+  useEffect(() => {
+    if (casesRegistry.length > 0 && !selectedCase) {
+      setSelectedCase(casesRegistry[0]);
+    }
+  }, [casesRegistry, selectedCase]);
   const [searchQuery, setSearchQuery] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [recentSearches, setRecentSearches] = useState<string[]>(["CASE-9481", "Aarav Sharma", "Indore Sector 4"]);
@@ -227,12 +197,18 @@ export default function CognitiveHeatmapsView({ highContrast }: { highContrast?:
   const [isSimulating, setIsSimulating] = useState(false);
   const [simulationSpeed, setSimulationSpeed] = useState(1); // 1x, 2x, 4x
 
-  // Search teams deployments
-  const [searchTeams, setSearchTeams] = useState<SearchTeam[]>([
-    { id: "T1", name: "Drone Delta-1", type: "Drone", x: 400, y: 300, color: "#06b6d4", status: "Scanning Corridor" },
-    { id: "T2", name: "State Rescue Team Alpha", type: "Police", x: 500, y: 520, color: "#ef4444", status: "Ground Patrol Active" },
-    { id: "T3", name: "Sankalp Volunteers C", type: "NGO", x: 580, y: 560, color: "#10b981", status: "Community Sweep" },
-  ]);
+  // Search teams deployments mapped from dynamic store
+  const searchTeams = React.useMemo<SearchTeam[]>(() => {
+    return teams.map(t => ({
+      id: t.id,
+      name: t.name,
+      type: t.type === "drone" ? "Drone" : "Police",
+      x: 300 + (t.location.lat % 1) * 1000,
+      y: 300 + (t.location.lng % 1) * 1000,
+      color: t.type === "drone" ? "#06b6d4" : "#ef4444",
+      status: t.status,
+    }));
+  }, [teams]);
 
   // Timeline real-time feeds
   const [timeline, setTimeline] = useState([
@@ -269,7 +245,7 @@ export default function CognitiveHeatmapsView({ highContrast }: { highContrast?:
 
     // Find case by name, ID, guardian, region, etc.
     const normalized = query.toLowerCase();
-    const found = CASES_REGISTRY.find(
+    const found = casesRegistry.find(
       (c) =>
         c.id.toLowerCase().includes(normalized) ||
         c.name.toLowerCase().includes(normalized) ||
@@ -337,6 +313,7 @@ export default function CognitiveHeatmapsView({ highContrast }: { highContrast?:
 
   // Handle click sighting injection
   const triggerSighting = () => {
+    if (!selectedCase) return;
     const newTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const eventText = `Verified citizen sighting: near ${selectedCase.searchZone}`;
     setTimeline((prev) => [{ time: newTime, event: eventText, category: "Unit" }, ...prev]);
@@ -925,42 +902,25 @@ COMPLIANCE AUDIT SIGN-OFF STATUS: Verified Secured Hashed Ledgers
 
             {/* Suggestions Dropdown */}
             {showSuggestions && (
-              <div className={`absolute top-full left-0 w-full rounded-xl mt-1 shadow-2xl overflow-hidden text-xs border ${bgDropdown}`}>
-                <div className={`p-2 border-b font-mono text-[9px] uppercase tracking-wider ${highContrast ? "border-stone-900 bg-stone-950/90 text-stone-500" : "border-gray-100 bg-gray-50 text-gray-400"}`}>
-                  Real-Time Database Match Suggestions
-                </div>
-                {CASES_REGISTRY.filter(
+              <div className={`absolute top-full left-0 right-0 mt-2 rounded-xl border ${bgDropdown} overflow-hidden z-50`}>
+                {casesRegistry.filter(
                   (c) =>
                     c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                     c.id.toLowerCase().includes(searchQuery.toLowerCase())
                 ).map((c) => (
-                  <div
+                  <button
                     key={c.id}
-                    onClick={() => executeSearch(c.id)}
-                    className={`p-3 cursor-pointer flex justify-between items-center border-b ${bgListItem}`}
+                    onClick={() => executeSearch(c.name)}
+                    className={`w-full text-left p-3 ${bgListItem} flex items-center justify-between border-b last:border-b-0 transition-colors`}
                   >
                     <div>
-                      <p className="font-extrabold">{c.name} ({c.id})</p>
-                      <p className="text-[10px] opacity-75 font-mono">Guardian: {c.guardian} • {c.region}</p>
+                      <span className="block font-bold text-sm">{c.name}</span>
+                      <span className="block text-[10px] uppercase text-gray-500 mt-0.5">{c.id} • {c.region}</span>
                     </div>
-                    <span className="px-2 py-0.5 rounded bg-purple-100 text-purple-700 border border-purple-200 font-mono text-[9px]">
-                      {c.defaultProfile}
+                    <span className="text-[10px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded font-black dark:bg-purple-900/50 dark:text-purple-400">
+                      {c.incidentType}
                     </span>
-                  </div>
-                ))}
-
-                <div className={`p-2 border-b font-mono text-[9px] uppercase tracking-wider ${highContrast ? "border-stone-900 bg-stone-950/30 text-stone-500" : "border-gray-100 bg-gray-50 text-gray-400"}`}>
-                  Recent Searches
-                </div>
-                {recentSearches.map((r) => (
-                  <div
-                    key={r}
-                    onClick={() => executeSearch(r)}
-                    className={`p-2.5 px-3 cursor-pointer flex items-center gap-2 ${bgListItem}`}
-                  >
-                    <Clock className="w-3.5 h-3.5 text-gray-400" />
-                    <span>{r}</span>
-                  </div>
+                  </button>
                 ))}
               </div>
             )}
@@ -1038,6 +998,24 @@ COMPLIANCE AUDIT SIGN-OFF STATUS: Verified Secured Hashed Ledgers
         )}
       </div>
 
+      <div className="flex justify-between items-center mb-6 z-10 relative">
+          <div>
+            <h2 className={`text-2xl font-black ${textMain} tracking-tight`}>
+              Child Behavioral Intelligence
+            </h2>
+            <p className={`text-xs uppercase tracking-widest ${textMuted} font-bold mt-1`}>
+              Cognitive Profile & Trajectory Prediction
+            </p>
+          </div>
+          {selectedCase && (
+            <div className="flex gap-2">
+              <button className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl text-xs transition-colors flex items-center gap-2 shadow-md">
+                <Brain className="w-4 h-4" /> RECALCULATE AI WEIGHTS
+              </button>
+            </div>
+          )}
+        </div>
+
       {/* Main Grid: Selector, Interactive Map, Explanations */}
       <div className="grid grid-cols-12 gap-4 flex-1">
         
@@ -1049,23 +1027,41 @@ COMPLIANCE AUDIT SIGN-OFF STATUS: Verified Secured Hashed Ledgers
                 <Brain className="w-4.5 h-4.5 text-purple-400" /> Behavior Selector
               </h4>
               <div className="space-y-1.5">
-                {["Autism", "ADHD", "Toddler", "Runaway", "Special Needs", "Custom Profile"].map((p) => (
+                {casesRegistry.filter(
+                  (c) =>
+                    filterRisk === "All" || c.incidentType.includes(filterRisk)
+                ).map((c) => (
                   <button
-                    key={p}
+                    key={c.id}
                     onClick={() => {
-                      setActiveProfile(p);
-                      addToast(`Map updated dynamically with ${p} profile parameters.`, "info");
+                      setSelectedCase(c);
+                      setLastSeen(c.coords);
+                      setActiveProfile(c.defaultProfile);
+                      addToast(`Switched to active case: ${c.name}`, "info");
                     }}
-                    className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                      activeProfile === p
-                        ? "bg-purple-600 text-white shadow-md shadow-purple-500/20"
-                        : `bg-stone-950/40 border border-stone-850/60 ${textMain} hover:border-purple-800 hover:bg-stone-950/80`
+                    className={`w-full text-left p-3 rounded-lg border flex flex-col gap-1 transition-all ${
+                      selectedCase?.id === c.id
+                        ? `border-purple-500 ring-1 ring-purple-500/20 ${highContrast ? "bg-stone-900" : "bg-purple-50"}`
+                        : `border-transparent ${bgListItem}`
                     }`}
                   >
-                    <span>{p}</span>
-                    {activeProfile === p && <CheckCircle2 className="w-4 h-4 text-white" />}
+                    <div className="flex justify-between items-start">
+                      <span className={`font-bold text-sm ${selectedCase?.id === c.id ? (highContrast ? "text-yellow-300" : "text-gray-900") : textMain}`}>
+                        {c.name}
+                      </span>
+                      <span className={`text-[10px] font-black px-1.5 rounded ${selectedCase?.id === c.id ? "bg-purple-600 text-white" : "bg-gray-200 text-gray-600 dark:bg-stone-800 dark:text-stone-400"}`}>
+                        {c.id}
+                      </span>
+                    </div>
+                    <span className="text-[10px] uppercase text-gray-500 font-bold">{c.incidentType}</span>
+                    <span className="text-[10px] text-gray-400 flex items-center gap-1 mt-1">
+                      <MapPin className="w-3 h-3" /> {c.region}
+                    </span>
                   </button>
                 ))}
+                {casesRegistry.length === 0 && (
+                   <div className="p-4 text-center text-sm text-gray-500 font-bold uppercase">NO ACTIVE MISSING CASES</div>
+                )}
               </div>
             </div>
 
@@ -1275,6 +1271,46 @@ COMPLIANCE AUDIT SIGN-OFF STATUS: Verified Secured Hashed Ledgers
         <div className="col-span-12 md:col-span-3 flex flex-col gap-4">
           <div className={`p-4 rounded-xl border ${bgCard} shadow-sm flex-1 flex flex-col justify-between overflow-y-auto max-h-[500px]`}>
             
+            {selectedCase && (
+                <div className={`p-5 rounded-2xl border flex flex-col gap-5 h-full ${bgCard}`}>
+                  <div className={`flex items-center gap-4 border-b ${borderSubtle} pb-4`}>
+                    <div className="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center border border-purple-200 dark:bg-purple-900/30 dark:border-purple-900 shrink-0">
+                      <User className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-lg font-black tracking-tight">{selectedCase.name}</h3>
+                      <p className={`text-xs ${textMuted} font-bold mt-0.5`}>
+                        {selectedCase.id} • {selectedCase.incidentType}
+                      </p>
+                    </div>
+                    <span className="px-3 py-1 bg-purple-600 text-white rounded-lg text-xs font-bold uppercase tracking-widest shadow-sm">
+                      {activeProfile} Profile
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 text-xs font-semibold">
+                    <div>
+                      <span className={`block text-[9px] uppercase tracking-wider mb-1 opacity-70`}>Last Seen Zone</span>
+                      <span className={textMain}>{selectedCase.searchZone}</span>
+                    </div>
+                    <div>
+                      <span className={`block text-[9px] uppercase tracking-wider mb-1 opacity-70`}>GPS Label</span>
+                      <span className="font-mono text-purple-500 dark:text-purple-400">{selectedCase.gpsLabel}</span>
+                    </div>
+                    <div>
+                      <span className={`block text-[9px] uppercase tracking-wider mb-1 opacity-70`}>Lead Officer</span>
+                      <span className={textMain}>{selectedCase.officer}</span>
+                    </div>
+                    <div>
+                      <span className={`block text-[9px] uppercase tracking-wider mb-1 opacity-70`}>Time Elapsed</span>
+                      <span className="text-amber-600 dark:text-amber-500 font-black flex items-center gap-1">
+                        <Clock className="w-3 h-3" /> {selectedCase.lastSeenTime}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
             {/* Explanations section */}
             <div>
               <h4 className={`text-sm font-bold uppercase tracking-wider ${textMuted} mb-3 flex items-center gap-2`}>

@@ -1,20 +1,21 @@
 const mongoose = require('mongoose');
 
 const shelterSchema = new mongoose.Schema({
+    id: { type: String, required: true, unique: true },
     name: { type: String, required: true },
-    location: { type: String, required: true },
     capacity: { type: Number, required: true },
-    currentOccupancy: { type: Number, default: 0 },
-    medicalFacilities: { type: Boolean, default: false },
-    staffCount: { type: Number, default: 0 },
-    performanceScore: { type: Number, default: 100 },
-    inspectionStatus: { type: String, enum: ['Pass', 'Fail', 'Pending'], default: 'Pending' },
-    emergencyResources: { type: [String], default: [] }
+    occupancy: { type: Number, required: true },
+    contactInfo: { type: String, required: true },
+    specializedCare: [{ type: String }],
+    staffAvailable: { type: Number, required: true },
+    status: { type: String, enum: ['Normal', 'Capacity Warning', 'Medical Request'], required: true }
 }, { timestamps: true });
 
-shelterSchema.virtual('availableBeds').get(function() {
-    return this.capacity - this.currentOccupancy;
+shelterSchema.set('toJSON', {
+    transform: function (doc, ret) {
+        delete ret._id;
+        delete ret.__v;
+    }
 });
-shelterSchema.set('toJSON', { virtuals: true });
 
 module.exports = mongoose.model('Shelter', shelterSchema);

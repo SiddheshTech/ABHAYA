@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { 
   Shield, Eye, MapPin, Users, Bell, ArrowUpRight, 
   Search, Filter, ChevronRight, CheckCircle2, MessageSquare, Send, Radio
 } from "lucide-react";
+import { useCWStore } from "../../lib/cwStore";
 
 interface CommunityWatchViewProps {
   highContrast?: boolean;
@@ -11,41 +12,28 @@ interface CommunityWatchViewProps {
 export default function CommunityWatchView({ highContrast }: CommunityWatchViewProps) {
   const [regionFilter, setRegionFilter] = useState("All");
   const [broadcastMessage, setBroadcastMessage] = useState("");
-  const [broadcasts, setBroadcasts] = useState([
-    { id: 1, sender: "Delhi HQ", msg: "Immediate priority alert: Active search in South West District. Volunteers check your emails.", time: "10 mins ago", level: "Critical" },
-    { id: 2, sender: "Patna Command", msg: "Operation Muskaan Phase IV initialized. High density shelters listed.", time: "42 mins ago", level: "Warning" },
-    { id: 3, sender: "Mumbai Metro", msg: "Security check completed for Central station railway shelter.", time: "2 hrs ago", level: "Info" },
-  ]);
+  
+  const { broadcasts, patrols: activePatrols, incidents: recentIncidents, fetchCWData } = useCWStore();
 
-  const [activePatrols] = useState([
-    { id: "P-401", area: "Sarojini Nagar Market", volunteers: 4, status: "On Patrol", lastPing: "3 mins ago" },
-    { id: "P-402", area: "Noida Sector 62", volunteers: 3, status: "Resting", lastPing: "18 mins ago" },
-    { id: "P-403", area: "Howrah Jn Platform 3-5", volunteers: 6, status: "Responding", lastPing: "Just Now" },
-    { id: "P-404", area: "Patna Junction Gate A", volunteers: 2, status: "On Patrol", lastPing: "12 mins ago" },
-  ]);
-
-  const [recentIncidents] = useState([
-    { id: "INC-883", title: "Sighting of Missing Boy #3381", loc: "New Delhi Railway Station", status: "Verified", time: "1 hr ago" },
-    { id: "INC-882", title: "Suspicious group near school gate", loc: "Sector 4, Dwarka", status: "Dispatched", time: "3 hrs ago" },
-    { id: "INC-881", title: "Unidentified runaway girl sheltered", loc: "Sewa Ashram, Ghaziabad", status: "Resolved", time: "5 hrs ago" },
-  ]);
+  useEffect(() => {
+    fetchCWData();
+  }, [fetchCWData]);
 
   const textMain = highContrast ? "text-yellow-300" : "text-gray-900";
   const textMuted = highContrast ? "text-gray-400" : "text-gray-500";
   const borderCol = highContrast ? "border-stone-800" : "border-gray-100";
   const bgCard = highContrast ? "bg-stone-900" : "bg-white";
 
+  const { addBroadcast } = useCWStore();
+
   const handleSendBroadcast = (e: React.FormEvent) => {
     e.preventDefault();
     if (!broadcastMessage.trim()) return;
-    const newB = {
-      id: Date.now(),
+    addBroadcast({
       sender: "Me (Community Watch Officer)",
       msg: broadcastMessage.trim(),
-      time: "Just Now",
       level: "Info",
-    };
-    setBroadcasts([newB, ...broadcasts]);
+    });
     setBroadcastMessage("");
   };
 
@@ -151,25 +139,16 @@ export default function CommunityWatchView({ highContrast }: CommunityWatchViewP
 
             <div className="space-y-3">
               {recentIncidents.map((inc) => (
-                <div key={inc.id} className={`p-3.5 rounded-xl border ${borderCol} flex items-center justify-between group hover:border-emerald-500/40 transition-all`}>
-                  <div className="space-y-0.5">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[10px] font-mono text-stone-400">{inc.id}</span>
-                      <p className={`font-bold text-sm ${textMain}`}>{inc.title}</p>
+                <div key={inc._id} className="relative pl-6 pb-6 border-l-2 border-stone-200 dark:border-stone-700 last:border-transparent last:pb-0">
+                  <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-white dark:bg-stone-900 border-2 border-orange-500"></div>
+                  <div className={`p-4 rounded-xl border ${borderCol} bg-stone-50 dark:bg-stone-800/30 flex flex-col gap-2 hover:border-orange-500/30 transition-colors`}>
+                    <div className="flex items-center justify-between">
+                      <h4 className={`font-bold text-sm ${textMain}`}>{inc.title}</h4>
+                      <span className="text-xs text-stone-400 font-mono">{inc.incidentId}</span>
                     </div>
                     <p className={`text-xs ${textMuted} flex items-center gap-1`}>
                       <MapPin className="w-3 h-3 text-red-500" /> {inc.loc}
                     </p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-[10px] text-stone-400">{inc.time}</span>
-                    <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold ${
-                      inc.status === "Verified" 
-                        ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20" 
-                        : "bg-blue-500/10 text-blue-500 border border-blue-500/20"
-                    }`}>
-                      {inc.status}
-                    </span>
                   </div>
                 </div>
               ))}

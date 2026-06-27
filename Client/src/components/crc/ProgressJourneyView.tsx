@@ -56,11 +56,11 @@ export default function ProgressJourneyView({
 
   const mainMatch = matchesList.find(m => m.childId === "RC-2042") || matchesList[0];
   const isFamilyMatchCompleted = mainMatch?.status === 'Approved';
-  const isRescuedCompleted = journeysList.some(j => j.title === "Rescued" && j.status === "Completed");
-  const isMedicalCompleted = journeysList.some(j => j.title === "Medical Assessment" && j.status === "Completed");
-  const isIdentityCompleted = journeysList.some(j => j.title === "Identity Verification" && j.status === "Completed") || isFamilyMatchCompleted;
-  const isReintegrationCompleted = journeysList.some(j => j.title === "Reintegration" && j.status === "Completed");
-  const currentJourneyStage = mainJourney?.currentStage || "Medical Assessment";
+  const isRescuedCompleted = journeysList.some(j => j.title === "Rescued" && (j.status === "Completed" || j.status === "Current"));
+  const isMedicalCompleted = journeysList.some(j => j.title === "Medical Clearance" && (j.status === "Completed" || j.status === "Current"));
+  const isIdentityCompleted = journeysList.some(j => j.title === "Family Identified" && (j.status === "Completed" || j.status === "Current")) || isFamilyMatchCompleted;
+  const isReintegrationCompleted = journeysList.some(j => j.title === "Reintegration" && (j.status === "Completed" || j.status === "Current"));
+  const currentJourneyStage = mainJourney?.currentStage || "Not Started";
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -252,49 +252,23 @@ export default function ProgressJourneyView({
       <div className={`p-6 rounded-2xl shadow-sm border ${bgCard}`}>
         <h3 className={`font-bold text-sm ${textMain} mb-6`}>Journey Log</h3>
         <div className="flex overflow-x-auto pb-4 gap-6 scrollbar-hide">
-          {[
-            {
-              day: "Day 1",
-              title: "Rescued",
-              desc: "Secured from hazardous conditions.",
-            },
-            {
-              day: "Day 3",
-              title: "Medical Clearance",
-              desc: "Completed initial health screening.",
-            },
-            {
-              day: "Day 12",
-              title: "Counselling Completed",
-              desc: "Trauma assessment stabilized.",
-            },
-            {
-              day: "Day 18",
-              title: "Family Verified",
-              desc: "Matched with biological parents.",
-              active: true,
-            },
-            {
-              day: "Day 24",
-              title: "Reintegrated",
-              desc: "Planned return home.",
-              pending: true,
-            },
-          ].map((log, i) => (
+          {journeysList.length === 0 ? (
+            <p className={`text-xs ${textMuted}`}>No journey logs available.</p>
+          ) : journeysList.map((log, i) => (
             <div
               key={i}
-              onClick={() => addToast(`Opening log details for ${log.day}...`, "info")}
-              className={`min-w-[200px] p-4 rounded-xl border ${log.active ? (highContrast ? "border-yellow-300" : "border-[#115e3b]") : borderClass} ${log.pending ? "opacity-50" : "cursor-pointer hover:shadow-md transition-shadow hover:-translate-y-1"}`}
+              onClick={() => addToast(`Opening log details for ${log.title}...`, "info")}
+              className={`min-w-[200px] p-4 rounded-xl border ${log.status === 'Current' ? (highContrast ? "border-yellow-300" : "border-[#115e3b]") : borderClass} ${log.status === 'Pending' ? "opacity-50" : "cursor-pointer hover:shadow-md transition-shadow hover:-translate-y-1"}`}
             >
               <span
-                className={`text-[10px] font-bold uppercase tracking-wider ${log.active ? (highContrast ? "text-yellow-300" : "text-[#115e3b]") : textMuted}`}
+                className={`text-[10px] font-bold uppercase tracking-wider ${log.status === 'Current' ? (highContrast ? "text-yellow-300" : "text-[#115e3b]") : textMuted}`}
               >
-                {log.day}
+                Day {log.daysInCare || 0}
               </span>
               <h4 className={`font-black text-sm ${textMain} mt-1 mb-2`}>
                 {log.title}
               </h4>
-              <p className={`text-xs ${textMuted}`}>{log.desc}</p>
+              <p className={`text-xs ${textMuted}`}>{log.description}</p>
             </div>
           ))}
         </div>

@@ -53,3 +53,24 @@ exports.getStates = async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 };
+
+const Recovery = require('../models/Recovery');
+const MajorCase = require('../models/MajorCase');
+
+exports.getRecoveries = async (req, res) => {
+    try {
+        const recoveries = await Recovery.find();
+        res.json(recoveries);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
+
+exports.getMajorCases = async (req, res) => {
+    try {
+        const cases = await MajorCase.find();
+        res.json(cases);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};

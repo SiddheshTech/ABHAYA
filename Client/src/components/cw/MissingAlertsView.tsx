@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Search, Filter, AlertTriangle, MapPin, Calendar, User, Eye, Share2, Clipboard, Copy, Check } from "lucide-react";
+import { useCWStore, Alert as StoreAlert } from "../../lib/cwStore";
 
 interface MissingAlertsViewProps {
   highContrast?: boolean;
@@ -24,63 +25,24 @@ export default function MissingAlertsView({ highContrast }: MissingAlertsViewPro
   const [selectedAlert, setSelectedAlert] = useState<MissingAlert | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  const [alerts] = useState<MissingAlert[]>([
-    {
-      id: "MA-9102",
-      name: "Aarav Sharma",
-      age: 8,
-      gender: "Male",
-      lastSeenLocation: "Platform 1, Old Delhi Station",
-      lastSeenDate: "2026-06-23",
-      riskLevel: "Critical",
-      description: "Last seen wearing a red t-shirt and blue jeans. Speaks Hindi. Has a small birthmark on right forearm. Shy of strangers.",
-      avatarSeed: "Aarav",
-    },
-    {
-      id: "MA-9103",
-      name: "Ananya Patel",
-      age: 12,
-      gender: "Female",
-      lastSeenLocation: "Ganesh Nagar Bus Terminal, Patna",
-      lastSeenDate: "2026-06-24",
-      riskLevel: "High",
-      description: "Yellow tunic and floral leggings. Speaks Hindi and Maithili. Carrying a small pink backpack.",
-      avatarSeed: "Ananya",
-    },
-    {
-      id: "MA-9104",
-      name: "Kabir Singh",
-      age: 5,
-      gender: "Male",
-      lastSeenLocation: "Near Community Hospital, Latehar",
-      lastSeenDate: "2026-06-22",
-      riskLevel: "Critical",
-      description: "Green striped shirt, barefoot. Speaks local Sadri dialect. Easily startled. Responds to nickname 'Chotu'.",
-      avatarSeed: "Kabir",
-    },
-    {
-      id: "MA-9105",
-      name: "Priya Das",
-      age: 9,
-      gender: "Female",
-      lastSeenLocation: "Howrah Jn Entrance, Kolkata",
-      lastSeenDate: "2026-06-25",
-      riskLevel: "Medium",
-      description: "Blue dress. Speaks Bengali and broken Hindi. Walks with a slight limp.",
-      avatarSeed: "Priya",
-    },
-    {
-      id: "MA-9106",
-      name: "Rohit Verma",
-      age: 14,
-      gender: "Male",
-      lastSeenLocation: "Weekly Market Ground, Dwarka Sec-11",
-      lastSeenDate: "2026-06-21",
-      riskLevel: "High",
-      description: "White school uniform shirt, black trousers. Left-handed. Speaks English and Hindi fluently.",
-      avatarSeed: "Rohit",
-    },
-  ]);
+  const { alerts: storeAlerts, fetchCWData } = useCWStore();
+
+  useEffect(() => {
+    fetchCWData();
+  }, [fetchCWData]);
+
+  // Map store alerts to the expected interface format
+  const alerts: MissingAlert[] = storeAlerts.map(a => ({
+    id: a._id.substring(0, 8),
+    name: a.name,
+    age: a.age,
+    gender: a.gender,
+    lastSeenLocation: a.location,
+    lastSeenDate: new Date(a.lastSeenDate).toISOString().split('T')[0],
+    riskLevel: a.riskLevel as "Critical" | "High" | "Medium",
+    description: `Alert ID: ${a._id}. Please check for more info.`,
+    avatarSeed: a.name,
+  }));
 
   const textMain = highContrast ? "text-yellow-300" : "text-gray-900";
   const textMuted = highContrast ? "text-gray-400" : "text-gray-500";
