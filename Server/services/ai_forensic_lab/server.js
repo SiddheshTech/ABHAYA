@@ -11,7 +11,37 @@ const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
 
 // Connect to Database
-connectDB();
+connectDB().then(async () => {
+    const AIReconstruction = require('./models/AIReconstruction');
+    const Genome = require('./models/Genome');
+    const Prediction = require('./models/Prediction');
+    const AuditLog = require('./models/AuditLog');
+
+    const reconCount = await AIReconstruction.countDocuments();
+    if (reconCount === 0) {
+        console.log("Seeding AI Forensic data...");
+        await AIReconstruction.insertMany([
+            { caseId: "REC-942", predictedOrigin: { confidence: 98 }, potentialFamilies: 1 },
+            { caseId: "REC-881", predictedOrigin: { confidence: 84 }, potentialFamilies: 0 },
+            { caseId: "REC-705", predictedOrigin: { confidence: 92 }, potentialFamilies: 2 }
+        ]);
+        
+        await Genome.insertMany([
+            { networkId: "NET-ALPHA", mutationProbability: 80, expectedShift: "Logistics", kingpinDetected: true },
+            { networkId: "NET-BETA", mutationProbability: 40, expectedShift: "Recruitment", kingpinDetected: false }
+        ]);
+        
+        await Prediction.insertMany([
+            { id: "PRED-101", timeframe: "24hrs", threatProbability: { gaugeValue: 90 } }
+        ]);
+        
+        await AuditLog.insertMany([
+            { action: "Prediction Generated", details: "Pattern Matches", severity: "High" },
+            { action: "Prediction Generated", details: "Network Alerts", severity: "Medium" }
+        ]);
+        console.log("Seed complete for AI Forensic Lab.");
+    }
+});
 
 // Middleware
 app.use(cors());

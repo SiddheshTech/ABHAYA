@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { translations, Language } from "../data/translations";
 import { PortalActiveTab, PapsSubPage, GuidelinesSubPage, GrievanceSubPage } from "../types";
-import { Menu, X, ChevronDown, ShieldCheck, HelpCircle } from "lucide-react";
-
+import { Menu, X, ChevronDown, ShieldCheck, HelpCircle, LogOut } from "lucide-react";
+import { useAuthStore } from "../lib/authStore";
 interface NavbarProps {
   lang: Language;
   activeTab: PortalActiveTab;
@@ -27,6 +27,7 @@ export default function Navbar({
   const t = translations[lang];
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileExpandedTab, setMobileExpandedTab] = useState<PortalActiveTab | null>(null);
+  const { isAuthenticated, logout } = useAuthStore();
 
   const papsSubItems: { labelEn: string; labelHi: string; value: PapsSubPage }[] = [
     { labelEn: "Eligibility Check", labelHi: "पात्रता जांच", value: "eligibility" },
@@ -205,18 +206,48 @@ export default function Navbar({
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Stakeholder Login button - orange design as requested */}
-            <button
-              onClick={onStakeholderLoginClick}
-              className={`flex items-center gap-2 text-sm font-bold px-4 py-2 rounded-full shadow-xs transition-all cursor-pointer ${
-                highContrast
-                  ? "bg-yellow-300 text-black hover:bg-yellow-400"
-                  : "bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white"
-              }`}
-            >
-              <ShieldCheck className="w-4 h-4" />
-              <span>{t.stakeholderLogin}</span>
-            </button>
+            {/* Stakeholder Login / Dashboard button */}
+            {isAuthenticated ? (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={onStakeholderLoginClick}
+                  className={`flex items-center gap-2 text-sm font-bold px-4 py-2 rounded-full shadow-xs transition-all cursor-pointer ${
+                    highContrast
+                      ? "bg-yellow-300 text-black hover:bg-yellow-400"
+                      : "bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white"
+                  }`}
+                >
+                  <ShieldCheck className="w-4 h-4" />
+                  <span>Dashboard</span>
+                </button>
+                <button
+                  onClick={() => {
+                    logout();
+                    window.location.reload();
+                  }}
+                  title="Logout"
+                  className={`flex items-center justify-center w-9 h-9 rounded-full shadow-xs transition-all cursor-pointer ${
+                    highContrast
+                      ? "bg-red-500 text-white hover:bg-red-600"
+                      : "bg-red-100 text-red-600 hover:bg-red-200"
+                  }`}
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={onStakeholderLoginClick}
+                className={`flex items-center gap-2 text-sm font-bold px-4 py-2 rounded-full shadow-xs transition-all cursor-pointer ${
+                  highContrast
+                    ? "bg-yellow-300 text-black hover:bg-yellow-400"
+                    : "bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white"
+                }`}
+              >
+                <ShieldCheck className="w-4 h-4" />
+                <span>{t.stakeholderLogin}</span>
+              </button>
+            )}
 
             {/* Mobile Hamburger toggle */}
             <button

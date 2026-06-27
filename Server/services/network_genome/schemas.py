@@ -1,25 +1,23 @@
 from pydantic import BaseModel
 from typing import List
 
-class NetworkAnalysisInput(BaseModel):
-    seed_node_ids: List[str]
-    timeframe_days: int = 30
+from pydantic import BaseModel
+from typing import List, Optional
 
-class TopologyMapResponse(BaseModel):
-    network_id: str
-    command_nodes: List[str]
-    vulnerability_sequence: List[str]
-    nodes_analyzed: int
-    edges_analyzed: int
+class ShiftDetail(BaseModel):
+    from_location: str
+    to_location: str
 
-class MutationPredictionInput(BaseModel):
-    network_id: str
-    collapsed_node_id: str
-    event_type: str # e.g. "Raid", "Arrest", "Route_Closure"
+class GenomeSequenceResponse(BaseModel):
+    target_network: str
+    mutation_probability: int
+    expected_shift: ShiftDetail
+    predicted_expansion: str
+    expansion_confidence: int
+    network_strength_percent: int
+    mutation_risk_level: str
+    collapse_point_nodes: int
+    collapse_probability: int
+    logistics_shift: str
+    recruitment_shift: str
 
-class MutationPredictionResponse(BaseModel):
-    collapsed_node: str
-    predicted_reroute_locations: List[str]
-    timeframe_hours: int
-    new_financial_flow: str
-    confidence: float

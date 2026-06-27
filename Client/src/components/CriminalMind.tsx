@@ -330,7 +330,7 @@ export default function CriminalMind({ highContrast, showToast }: CriminalMindPr
             setActiveProfile(result.data);
             setActiveArchetype(result.data.dominantArchetype);
           }
-          if (showToast) showToast(`Behavioral Intelligence Updated successfully via ${result.source.toUpperCase()}`, "success");
+          if (showToast) showToast(`Behavioral Intelligence Updated successfully via ${result.source?.toUpperCase() || "GEMINI AI"}`, "success");
         }, 1200);
       } else {
         throw new Error("Profiler endpoint error");

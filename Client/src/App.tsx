@@ -57,19 +57,16 @@ export default function App() {
   const [missionControlDashboardOpen, setMissionControlDashboardOpen] = useState(false);
   const [systemDashboardRole, setSystemDashboardRole] = useState<string | null>(null);
 
-  useEffect(() => {
+  const handleStakeholderLoginClick = () => {
     if (isAuthenticated && user) {
       if (user.role === "IWR") setIwrDashboardOpen(true);
       else if (user.role === "AIFL") setAiflDashboardOpen(true);
       else if (user.role === "MC") setMissionControlDashboardOpen(true);
       else if (["CRC", "CW", "ROS"].includes(user.role)) setSystemDashboardRole(user.role);
     } else {
-      setIwrDashboardOpen(false);
-      setAiflDashboardOpen(false);
-      setMissionControlDashboardOpen(false);
-      setSystemDashboardRole(null);
+      setStakeholderLoginOpen(true);
     }
-  }, [isAuthenticated, user]);
+  };
 
   // Dynamic class adjustments based on text sizes
   const appFontClass = textSize === "large" ? "text-lg" : textSize === "extra-large" ? "text-xl" : "text-sm";
@@ -113,7 +110,7 @@ export default function App() {
         setActivePapsSubPage={setActivePapsSubPage}
         setActiveGuidelinesSubPage={setActiveGuidelinesSubPage}
         setActiveGrievanceSubPage={setActiveGrievanceSubPage}
-        onStakeholderLoginClick={() => setStakeholderLoginOpen(true)}
+        onStakeholderLoginClick={handleStakeholderLoginClick}
         highContrast={highContrast}
       />
 
