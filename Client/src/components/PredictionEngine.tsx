@@ -584,14 +584,14 @@ export default function PredictionEngine({ highContrast, showToast }: Prediction
           <div 
             onClick={() => currentPrediction && setXaiPopupCard({
               title: "Social Media Sentinel Sentiment Models",
-              score: `${currentPrediction.socialUnrest.riskScore}% Unrest Score`,
-              description: `Our NLP sentinel monitors local social networks, tracking recruitment advertisements and distressed keywords. Current sentiment value: ${currentPrediction.socialUnrest.sentimentAnalysis}`,
+              score: `${currentPrediction?.socialUnrest?.riskScore ?? 35}% Unrest Score`,
+              description: `Our NLP sentinel monitors local social networks, tracking recruitment advertisements and distressed keywords. Current sentiment value: ${currentPrediction?.socialUnrest?.sentimentAnalysis ?? "N/A"}`,
               listTitle: "Active Social Alerts",
               listItems: [
-                `Keywords Trend: ${currentPrediction.socialUnrest.socialMedia}`,
-                `Crime Sentinel: ${currentPrediction.socialUnrest.crimeReports}`,
-                `Protest Status: ${currentPrediction.socialUnrest.protestMonitoring}`,
-                `Community Flag: ${currentPrediction.socialUnrest.communityAlerts}`
+                `Keywords Trend: ${currentPrediction?.socialUnrest?.socialMedia ?? "No data"}`,
+                `Crime Sentinel: ${currentPrediction?.socialUnrest?.crimeReports ?? "No data"}`,
+                `Protest Status: ${currentPrediction?.socialUnrest?.protestMonitoring ?? "No data"}`,
+                `Community Flag: ${currentPrediction?.socialUnrest?.communityAlerts ?? "No data"}`
               ]
             })}
             className={`p-5 rounded-2xl border cursor-pointer ${bgCard} group`}
@@ -606,13 +606,13 @@ export default function PredictionEngine({ highContrast, showToast }: Prediction
               <div className="flex-1 bg-slate-100 h-2.5 rounded-full overflow-hidden border border-slate-200">
                 <div 
                   className="bg-purple-500 h-full rounded-full transition-all duration-1000" 
-                  style={{ width: `${currentPrediction?.socialUnrest.riskScore || 35}%` }}
+                  style={{ width: `${currentPrediction?.socialUnrest?.riskScore ?? 35}%` }}
                 ></div>
               </div>
-              <span className="text-xs font-black text-purple-600">{currentPrediction?.socialUnrest.riskScore || 35}%</span>
+              <span className="text-xs font-black text-purple-600">{currentPrediction?.socialUnrest?.riskScore ?? 35}%</span>
             </div>
             <p className="text-[11px] text-slate-500 leading-relaxed">
-              Keywords frequency: <span className="font-semibold text-slate-700">{currentPrediction?.socialUnrest.socialMedia.slice(0, 45)}...</span>
+              Keywords frequency: <span className="font-semibold text-slate-700">{currentPrediction?.socialUnrest?.socialMedia ? `${currentPrediction.socialUnrest.socialMedia.slice(0, 45)}...` : "No data"}</span>
             </p>
           </div>
         </div>
@@ -1141,14 +1141,14 @@ export default function PredictionEngine({ highContrast, showToast }: Prediction
           <div 
             onClick={() => currentPrediction && setXaiPopupCard({
               title: "Model Accuracy & Calibration Metrics",
-              score: currentPrediction.confidenceScore.accuracy,
-              description: `Verification status: ${currentPrediction.confidenceScore.reliability}. Prediction telemetry: ${currentPrediction.confidenceScore.quality}.`,
+              score: currentPrediction?.confidenceScore?.accuracy ?? "90%",
+              description: `Verification status: ${currentPrediction?.confidenceScore?.reliability ?? "Unknown"}. Prediction telemetry: ${currentPrediction?.confidenceScore?.quality ?? "Unknown"}.`,
               listTitle: "Engine Specifications",
               listItems: [
-                `Standard: ${currentPrediction.confidenceScore.quality}`,
-                `Model Calibration: ${currentPrediction.confidenceScore.reliability}`,
-                `Data Freshness: ${currentPrediction.confidenceScore.freshness}`,
-                `Calibrated Engine: ${currentPrediction.confidenceScore.modelVersion}`
+                `Standard: ${currentPrediction?.confidenceScore?.quality ?? "Unknown"}`,
+                `Model Calibration: ${currentPrediction?.confidenceScore?.reliability ?? "Unknown"}`,
+                `Data Freshness: ${currentPrediction?.confidenceScore?.freshness ?? "Unknown"}`,
+                `Calibrated Engine: ${currentPrediction?.confidenceScore?.modelVersion ?? "Unknown"}`
               ]
             })}
             className={`p-5 rounded-2xl border cursor-pointer ${bgCard} bg-gradient-to-br from-emerald-50/50 to-white dark:from-emerald-950/20 group`}
@@ -1163,7 +1163,7 @@ export default function PredictionEngine({ highContrast, showToast }: Prediction
               {currentPrediction ? `${94 - activeTimeframeOffset(currentPrediction.timeframe) * 4}%` : "90%"}
             </div>
             <p className="text-[10px] text-slate-500 leading-relaxed font-medium">
-              Model parameters: <span className="text-slate-700 font-bold">{currentPrediction?.confidenceScore.accuracy}</span>
+              Model parameters: <span className="text-slate-700 font-bold">{currentPrediction?.confidenceScore?.accuracy ?? "N/A"}</span>
             </p>
           </div>
 

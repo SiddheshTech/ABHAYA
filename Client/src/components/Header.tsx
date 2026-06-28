@@ -71,11 +71,13 @@ export default function Header({
 
           {/* SAA/ABHAYA graphic icon & logo */}
           <div className="flex items-center gap-3 border-l pl-4 border-gray-300" id="abhaya-logo">
-            <img
-              src={IndiaEmblem}
-              alt="ABHAYA emblem"
-              className="w-12 h-12 rounded-full border border-gray-200 bg-white/80 object-contain shrink-0"
-            />
+            <div className="w-12 h-12 rounded-full border border-gray-200 bg-white/90 overflow-hidden shrink-0 flex items-center justify-center">
+              <img
+                src={IndiaEmblem}
+                alt="ABHAYA emblem"
+                className="w-10 h-10 object-contain"
+              />
+            </div>
 
             <div>
               <div className="flex flex-col">
@@ -88,7 +90,35 @@ export default function Header({
                 <span className="text-[10px] md:text-xs font-semibold text-gray-500 mt-1 uppercase max-w-xs md:max-w-md">
                   {lang === "en" ? t.subtitle : t.hindiSubtitle}
                 </span>
+                <span className="text-[10px] md:text-xs font-extrabold tracking-wider mt-1 text-amber-700 dark:text-yellow-300 uppercase">
+                  {lang === "en" ? "SATYAMEVA JAYATE" : "सत्यमेव जयते"}
+                </span>
               </div>
+            </div>
+          </div>
+
+          {/* Lion Capital logo mark */}
+          <div className="flex items-center gap-3 border-l pl-4 border-gray-300" id="lion-capital-logo">
+            <div className="w-12 h-12 rounded-full border border-gray-200 bg-white/90 overflow-hidden shrink-0 flex items-center justify-center">
+              <svg viewBox="0 0 100 100" className="w-8 h-8" xmlns="http://www.w3.org/2000/svg">
+                <g fill="none" stroke="currentColor" strokeWidth="3">
+                  <path d="M 20 70 C 20 50, 30 40, 40 40 C 50 40, 50 55, 50 55" />
+                  <path d="M 80 70 C 80 50, 70 40, 60 40 C 50 40, 50 55, 50 55" />
+                  <path d="M 36 28 C 38 18, 44 14, 50 14 C 56 14, 62 18, 64 28" />
+                  <path d="M 30 50 C 35 60, 45 62, 50 60 C 55 62, 65 60, 70 50" />
+                  <path d="M 24 70 L 76 70" strokeLinecap="round" />
+                  <path d="M 28 74 L 72 74" strokeLinecap="round" />
+                  <path d="M 38 78 L 62 78" strokeLinecap="round" />
+                </g>
+                <g fill="currentColor">
+                  <circle cx="50" cy="45" r="3" />
+                </g>
+              </svg>
+            </div>
+
+            <div className="flex flex-col leading-tight">
+              <span className={`text-sm font-bold ${highContrast ? "text-yellow-300" : "text-gray-800"}`}>Lion Capital</span>
+              <span className="text-[10px] uppercase tracking-widest text-gray-500">India Emblem</span>
             </div>
           </div>
         </div>
