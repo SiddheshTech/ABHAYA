@@ -1,6 +1,7 @@
 import React from "react";
 import { translations, Language } from "../data/translations";
 import { Accessibility, HelpCircle, PhoneCall, Globe, Sparkles } from "lucide-react";
+import IndiaEmblem from "../assets/india.svg";
 
 interface HeaderProps {
   lang: Language;
@@ -70,15 +71,11 @@ export default function Header({
 
           {/* SAA/ABHAYA graphic icon & logo */}
           <div className="flex items-center gap-3 border-l pl-4 border-gray-300" id="abhaya-logo">
-            {/* Visual ABHAYA graphical badge (Mother carrying a child in her lap) */}
-            <div className="relative w-12 h-12 flex items-center justify-center rounded-full bg-linear-to-tr from-amber-500 to-rose-500 text-white shadow-sm shrink-0">
-              <svg className="w-8 h-8 fill-white" viewBox="0 0 24 24">
-                <circle cx="12" cy="6" r="2.5" />
-                <path d="M12 9.5c-2.2 0-4 1.8-4 4v5c0 .8.7 1.5 1.5 1.5h1v-4h3v4h1c.8 0 1.5-.7 1.5-1.5v-5c0-2.2-1.8-4-4-4zm-2.5 4.5c.6 0 1-.4 1-1s-.4-1-1-1-1 .4-1 1 .4 1 1 1z" />
-              </svg>
-              {/* Small Orange Swirl */}
-              <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-yellow-400 opacity-90 animate-bounce" />
-            </div>
+            <img
+              src={IndiaEmblem}
+              alt="ABHAYA emblem"
+              className="w-12 h-12 rounded-full border border-gray-200 bg-white/80 object-contain shrink-0"
+            />
 
             <div>
               <div className="flex flex-col">
