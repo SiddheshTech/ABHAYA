@@ -19,10 +19,8 @@ connectDB().then(async () => {
     const Organization = require('./models/Organization');
     const Recovery = require('./models/Recovery');
     const MajorCase = require('./models/MajorCase');
-<<<<<<< HEAD
     const AIModel = require('./models/AIModel');
     const AuditEvent = require('./models/AuditEvent');
-=======
     
     // Knowledge Vault models
     const KnowledgeNode = require('./models/KnowledgeNode');
@@ -32,7 +30,6 @@ connectDB().then(async () => {
     const FavoriteCase = require('./models/FavoriteCase');
     const Watchlist = require('./models/Watchlist');
     const AISuggestion = require('./models/AISuggestion');
->>>>>>> 92a5d025542300c3144820f73fc8505378fdae42
 
     const count = await State.countDocuments();
     if (count === 0) {

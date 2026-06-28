@@ -10,7 +10,9 @@ const childSchema = new mongoose.Schema({
     riskLevel: { type: String, enum: ['Low Risk', 'Medium Risk', 'High Risk'] },
     arrivalDate: { type: String },
     medicalAlerts: [{ type: String }],
-    profileImage: { type: String }
+    profileImage: { type: String },
+    officerNotes: { type: String },
+    caseWorker: { type: String }
 }, { timestamps: true });
 
 // Strip _id and __v from output when calling toJSON

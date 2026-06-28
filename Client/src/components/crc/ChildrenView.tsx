@@ -124,20 +124,9 @@ export default function ChildrenView({
     setEditSocial(wellness.social);
     setAlertsList(wellness.medicalAlerts || []);
 
-    // Set static initial officer notes if not set
-    if (child.name === "Rahul") {
-      setOfficerNotes("Rahul is undergoing physical rehabilitation. Exhibiting strong learning progress. Enjoys wooden toys and reading short picture sentences. Medical staff suggests increasing dietary proteins.");
-      setCaseWorker("Inspector Raj, Child Welfare Special Unit");
-    } else if (child.name === "Ananya") {
-      setOfficerNotes("Ananya is adapting quickly. Her educational evaluation places her in standard primary curriculum. Highly creative and cooperative during cognitive development sessions.");
-      setCaseWorker("Welfare Officer Sunita Sharma");
-    } else if (child.name === "Priya") {
-      setOfficerNotes("Family matched with grandfather in Pune. Legal reintegration verification with local CWC underway. Child feels happy and secure about returning home.");
-      setCaseWorker("Senior Counsellor Devendra Rao");
-    } else {
-      setOfficerNotes("Child is well adjusted. Undergoing routine counselling sessions. Daily log entries indicate normal, healthy progress.");
-      setCaseWorker("Inspector Raj, Child Welfare Unit");
-    }
+    // Use the dynamic details mapped from the backend
+    setOfficerNotes(child.officerNotes || "No specific officer notes available for this child yet.");
+    setCaseWorker(child.caseWorker || "Unassigned Case Worker");
   };
 
   const handleSaveWellness = async () => {

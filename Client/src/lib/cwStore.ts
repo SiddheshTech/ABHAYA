@@ -64,10 +64,10 @@ export const useCWStore = create<CWStore>((set, get) => ({
         set({ isLoading: true, error: null });
         try {
             const [broadcastsRes, patrolsRes, incidentsRes, alertsRes] = await Promise.all([
-                fetch('/api/cw/broadcasts').then(r => r.json()),
-                fetch('/api/cw/patrols').then(r => r.json()),
-                fetch('/api/cw/incidents').then(r => r.json()),
-                fetch('/api/alerts').then(r => r.json()), // wait, alerts is under /api/alerts
+                fetch('http://localhost:5006/api/cw/broadcasts').then(r => r.json()),
+                fetch('http://localhost:5006/api/cw/patrols').then(r => r.json()),
+                fetch('http://localhost:5006/api/cw/incidents').then(r => r.json()),
+                fetch('http://localhost:5006/api/alerts').then(r => r.json()),
             ]);
 
             set({
@@ -93,6 +93,23 @@ export const useCWStore = create<CWStore>((set, get) => ({
             set(state => ({ broadcasts: [newBroadcast, ...state.broadcasts] }));
         } catch (error: any) {
             console.error("Failed to add broadcast", error);
+        }
+    },
+
+    init: async () => {
+        get().fetchCWData();
+
+        // Connect websocket
+        if (!get().socket) {
+            const socket = io('http://localhost:5006');
+            socket.on('connect', () => console.log('Connected to CW socket'));
+      
+            socket.on('update', (message) => {
+                console.log('CW real-time update:', message);
+                get().fetchCWData();
+            });
+
+            set({ socket });
         }
     }
 }));

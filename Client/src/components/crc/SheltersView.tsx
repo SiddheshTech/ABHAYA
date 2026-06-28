@@ -54,63 +54,16 @@ export default function SheltersView({
   const highOccupancyCount = sheltersList.filter(s => (s.occupancy / s.capacity) > 0.85).length;
   const warningsCount = sheltersList.filter(s => s.status === 'Warning' || s.status === 'Critical').length;
 
-  // Static mock variables to satisfy "Doctors, Counsellors, Inspection History, Performance, Funding, Supply Status"
-  const getExtendedShelterDetails = (name: string) => {
-    switch (name) {
-      case "Delhi Hope Center":
-        return {
-          doctors: "Dr. Sunita Sharma (Pediatrician), Dr. Ravi Sen (General)",
-          counsellors: "Manoj Kumar (Trauma Specialist), Priya Shah (Child Psychologist)",
-          inspectionHistory: "Passed with Honors (March 2026)",
-          performanceScore: "95/100",
-          fundingStatus: "Fully Funded (Ministry Grant Vatsalya)",
-          supplyStatus: "Sufficient (3 months buffer medicine & meals)",
-          details: "Primary Northern India gateway shelter equipped with standard child play rooms and isolation beds."
-        };
-      case "Mumbai SafeHaven":
-        return {
-          doctors: "Dr. Alok Verma (Pediatrician), Dr. Anita Deshmukh (Psychiatrist)",
-          counsellors: "Sanjay Joshi (Youth Specialist), Maria D'Souza (Therapist)",
-          inspectionHistory: "Passed (January 2026)",
-          performanceScore: "88/100",
-          fundingStatus: "Emergency Grants Activated due to occupancy",
-          supplyStatus: "Restocking Needed (Medical kits & therapeutic milk)",
-          details: "Critical Western hub focusing on immediate rescue intake. High density, requires active capacity transfers."
-        };
-      case "Pune Aashray":
-        return {
-          doctors: "Dr. Milind Kulkarni (General), Dr. Swati Patil (Nutritionist)",
-          counsellors: "Anjali Gore (Cognitive Therapist), Rahul Sawant (Case Worker)",
-          inspectionHistory: "Passed (February 2026)",
-          performanceScore: "92/100",
-          fundingStatus: "Stable (Local Trust & CSR Matching)",
-          supplyStatus: "Sufficient (Abundant storage beds)",
-          details: "Long-term therapeutic recovery retreat with open garden classrooms and educational workspaces."
-        };
-      case "Bangalore Care":
-        return {
-          doctors: "Dr. Ramesh Hegde (Pediatrician), Dr. Sophia Thomas (Behavioral)",
-          counsellors: "Karthik Raja (Reintegration Officer), Lakshmi Iyer (Therapist)",
-          inspectionHistory: "Passed with Warnings (November 2025)",
-          performanceScore: "84/100",
-          fundingStatus: "Critical (Awaiting Quarterly Disbursement)",
-          supplyStatus: "Low Buffer (Restock advisory raised for winter clothing)",
-          details: "Southern special support hub focusing on multilingual child rescue cases and digital tracking labs."
-        };
-      default:
-        return {
-          doctors: "Dr. Sunita Sharma",
-          counsellors: "Manoj Kumar",
-          inspectionHistory: "Passed (March 2026)",
-          performanceScore: "90/100",
-          fundingStatus: "Stable",
-          supplyStatus: "Sufficient",
-          details: "Standard safety recovery shelter operations."
-        };
-    }
+  // Extract extended details from the selected shelter directly
+  const extendedDetails = {
+    doctors: selectedShelter?.doctors || "Information not provided",
+    counsellors: selectedShelter?.counsellors || "Information not provided",
+    inspectionHistory: selectedShelter?.inspectionHistory || "No recent inspection data",
+    performanceScore: selectedShelter?.performanceScore || "N/A",
+    fundingStatus: selectedShelter?.fundingStatus || "Unknown",
+    supplyStatus: selectedShelter?.supplyStatus || "Unknown",
+    details: selectedShelter?.details || "No additional details available."
   };
-
-  const extDetails = getExtendedShelterDetails(selectedShelter?.name || "Delhi Hope Center");
 
   // Local handler to simulate admitting child to selected shelter (+1 occupancy)
   const handleAdmitChild = () => {

@@ -8,7 +8,9 @@ export interface ChildInfo {
   shelter: string;
   status: string;
   risk: 'Low' | 'Medium' | 'High';
-  photo: string;
+  photo?: string;
+  officerNotes?: string;
+  caseWorker?: string;
 }
 
 export interface ShelterInfo {
@@ -21,6 +23,13 @@ export interface ShelterInfo {
   medicalKits: number;
   safeRooms: number;
   status: 'Active' | 'Warning' | 'Critical';
+  doctors?: string;
+  counsellors?: string;
+  inspectionHistory?: string;
+  performanceScore?: string;
+  fundingStatus?: string;
+  supplyStatus?: string;
+  details?: string;
 }
 
 export interface FamilyMatchInfo {
@@ -115,12 +124,12 @@ export const useCRCStore = create<CRCState>((set, get) => ({
 
     try {
       const [childrenData, sheltersData, matchesData, wellnessData, journeysData, statsData] = await Promise.all([
-        fetch('/api/children').then(r => r.json()),
-        fetch('/api/shelters').then(r => r.json()),
-        fetch('/api/family-matches').then(r => r.json()),
-        fetch('/api/wellness').then(r => r.json()),
-        fetch('/api/journeys').then(r => r.json()),
-        fetch('/api/stats').then(r => r.json())
+        fetch('http://localhost:5000/api/children').then(r => r.json()),
+        fetch('http://localhost:5000/api/shelters').then(r => r.json()),
+        fetch('http://localhost:5000/api/family-matches').then(r => r.json()),
+        fetch('http://localhost:5000/api/wellness').then(r => r.json()),
+        fetch('http://localhost:5000/api/journeys').then(r => r.json()),
+        fetch('http://localhost:5000/api/stats').then(r => r.json())
       ]);
 
       const mapChildren = (data: any[]): ChildInfo[] => data.map(c => ({
@@ -129,8 +138,10 @@ export const useCRCStore = create<CRCState>((set, get) => ({
         age: c.age,
         shelter: c.location,
         status: c.status,
-        risk: c.riskLevel.replace(' Risk', '') as any,
-        photo: c.profileImage
+        risk: c.riskLevel ? c.riskLevel.replace(' Risk', '') as any : 'Low',
+        photo: c.profileImage,
+        officerNotes: c.officerNotes,
+        caseWorker: c.caseWorker
       }));
 
       const mapShelters = (data: any[]): ShelterInfo[] => data.map(s => ({
@@ -142,7 +153,14 @@ export const useCRCStore = create<CRCState>((set, get) => ({
         staff: s.staffAvailable,
         medicalKits: Math.floor(s.capacity / 5),
         safeRooms: Math.floor(s.capacity / 15),
-        status: s.status === 'Normal' ? 'Active' : s.status === 'Capacity Warning' ? 'Warning' : 'Critical'
+        status: s.status === 'Normal' ? 'Active' : s.status === 'Capacity Warning' ? 'Warning' : 'Critical',
+        doctors: s.doctors,
+        counsellors: s.counsellors,
+        inspectionHistory: s.inspectionHistory,
+        performanceScore: s.performanceScore,
+        fundingStatus: s.fundingStatus,
+        supplyStatus: s.supplyStatus,
+        details: s.details
       }));
 
       set({
@@ -163,7 +181,7 @@ export const useCRCStore = create<CRCState>((set, get) => ({
         dailyBrief: statsData.dailyBrief || []
       });
 
-      const socket = io();
+      const socket = io('http://localhost:5000');
       
       socket.on('update', async ({ type, data }) => {
         if (type === 'children') set({ childrenList: mapChildren(data) });
@@ -173,7 +191,7 @@ export const useCRCStore = create<CRCState>((set, get) => ({
         if (type === 'journeys') set({ journeysList: data });
         
         // Refresh stats
-        const stats = await fetch('/api/stats').then(r => r.json());
+        const stats = await fetch('http://localhost:5000/api/stats').then(r => r.json());
         set({
           childrenUnderCare: stats.totalChildren,
           newRescues: stats.newRescues,

@@ -119,15 +119,15 @@ export const useRosStore = create<RosStore>((set, get) => ({
                 aiHealthRes,
                 auditRes
             ] = await Promise.all([
-                fetch('/api/command/recoveries').then(r => r.json()),
-                fetch('/api/command/majorCases').then(r => r.json()),
-                fetch('/api/nation/states').then(r => r.json()),
-                fetch('/api/genome/networks').then(r => r.json()),
-                fetch('/api/forecasts/predictions').then(r => r.json()),
-                fetch('/api/organizations').then(r => r.json()),
-                fetch('/api/command/dashboard').then(r => r.json()),
-                fetch('/api/ai/health').then(r => r.json()),
-                fetch('/api/ledger/timeline').then(r => r.json())
+                fetch('http://localhost:5007/api/command/recoveries').then(r => r.json()),
+                fetch('http://localhost:5007/api/command/majorCases').then(r => r.json()),
+                fetch('http://localhost:5007/api/nation/states').then(r => r.json()),
+                fetch('http://localhost:5007/api/genome/networks').then(r => r.json()),
+                fetch('http://localhost:5007/api/forecasts/predictions').then(r => r.json()),
+                fetch('http://localhost:5007/api/organizations').then(r => r.json()),
+                fetch('http://localhost:5007/api/command/dashboard').then(r => r.json()),
+                fetch('http://localhost:5007/api/ai/health').then(r => r.json()),
+                fetch('http://localhost:5007/api/ledger/timeline').then(r => r.json())
             ]);
 
             set({
