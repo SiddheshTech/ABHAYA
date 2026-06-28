@@ -204,23 +204,28 @@ export default function IdentityEngine({ highContrast, showToast }: IdentityEngi
       });
     } else if (file.type === 'application/pdf' || file.name.endsWith('.pdf') || file.name.includes('fir') || file.name.includes('report')) {
       let docType: 'FIR' | 'Medical' | 'Birth' | 'Other' = 'Other';
-      let ocrData: any = {};
-      if (file.name.toLowerCase().includes('fir')) {
-        docType = 'FIR';
-        ocrData = { firNo: "FIR-442/2026", station: "Dumka Sadar", date: "2026-06-12", reporter: "Sibu Soren (Father)", missingPerson: "Aarav Soren", description: "Age 9, dark complexion, left shoulder birthmark." };
-      } else if (file.name.toLowerCase().includes('medical')) {
-        docType = 'Medical';
-        ocrData = { hospital: "Latehar Rural Clinic", birthDate: "2017-03-15", bloodGroup: "O+", weightAtBirth: "2.8 kg", vaccination: "BCG Completed 2018" };
-      } else if (file.name.toLowerCase().includes('birth')) {
-        docType = 'Birth';
-        ocrData = { regNo: "REG-JH-99210", childName: "Aarav Soren", motherName: "Malati Devi", fatherName: "Sibu Soren", village: "Amrapara" };
-      }
+      if (file.name.toLowerCase().includes('fir')) docType = 'FIR';
+      else if (file.name.toLowerCase().includes('medical')) docType = 'Medical';
+      else if (file.name.toLowerCase().includes('birth')) docType = 'Birth';
 
-      const newDoc = { id, name: file.name, type: docType, size: sizeStr, progress: 0, ocrData };
+      const newDoc = { id, name: file.name, type: docType, size: sizeStr, progress: 0, ocrData: { extractedText: "Extracting from backend..." } };
       setUploadedDocs(prev => [...prev, newDoc]);
-      simulateUploadProgress(file.name, (prog) => {
+      
+      simulateUploadProgress(file.name, async (prog) => {
         setUploadedDocs(prev => prev.map(d => d.id === id ? { ...d, progress: prog } : d));
-        if (prog === 100) addWsLog(`Document OCR indexing complete for ${file.name}.`, 'system');
+        if (prog === 100) {
+          addWsLog(`Initiating OCR extraction on ${file.name}...`, 'system');
+          try {
+            const formData = new FormData();
+            formData.append("file", file);
+            const res = await fetch("/api/v1/ghost/extract-document", { method: "POST", body: formData });
+            const data = await res.json();
+            setUploadedDocs(prev => prev.map(d => d.id === id ? { ...d, ocrData: data } : d));
+            addWsLog(`Document OCR indexing complete for ${file.name}. Found FIR: ${data.firNo}`, 'system');
+          } catch(e) {
+            setUploadedDocs(prev => prev.map(d => d.id === id ? { ...d, ocrData: { extractedText: "Failed to connect to AI OCR Endpoint." } } : d));
+          }
+        }
       });
     } else if (file.type.startsWith('audio/') || file.name.endsWith('.wav') || file.name.endsWith('.mp3')) {
       setVoiceFile({ file, name: file.name, size: sizeStr, isCleaned: false, progress: 0 });

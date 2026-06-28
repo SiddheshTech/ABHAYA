@@ -116,3 +116,13 @@ class AudioAnalysisResponse(BaseModel):
     accent_confidence: float
     phonetic_markers: List[str]
     regional_mapping: str
+
+class DocumentExtractionResponse(BaseModel):
+    firNo: str
+    station: str
+    date: str
+    district: str
+    officer: str
+    ipcSections: str
+    extractedText: str
+    confidence: float

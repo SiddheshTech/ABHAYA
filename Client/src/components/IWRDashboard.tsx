@@ -868,16 +868,43 @@ function TraffickingGenomeLabView({ highContrast }: { highContrast: boolean }) {
 }
 
 function IntelligenceFeedView({ highContrast }: { highContrast: boolean }) {
-  const [activeAlertId, setActiveAlertId] = useState(1);
+  const [activeAlertId, setActiveAlertId] = useState<any>(null);
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
+  const [alerts, setAlerts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const alerts = [
-    { id: 1, title: "Cross-State Movement", severity: "Critical", time: "2m ago", desc: "Target vehicle spotted crossing toll plaza into Nashik corridor.", score: 95 },
-    { id: 2, title: "New Criminal Links", severity: "High", time: "15m ago", desc: "Communication intercepted between Syndicate X and known local associate.", score: 88 },
-    { id: 3, title: "Suspicious Activity", severity: "Medium", time: "1h ago", desc: "Bulk untraceable fund transfer flagged via newly detected UPI handle.", score: 65 },
-    { id: 4, title: "Repeat Offenders", severity: "Low", time: "3h ago", desc: "Minor associate released on bail spotted in surveillance zone.", score: 40 },
-    { id: 5, title: "Emerging Hotspots", severity: "High", time: "4h ago", desc: "Increased density of suspect cell pings near Sector 14 Market.", score: 82 }
-  ];
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const res = await fetch(`${import.meta.env.VITE_IWR_API_URL}/intelligence/feed`);
+        if (res.ok) {
+          const data = await res.json();
+          const mapped = data.map((t: any) => ({
+            id: t._id,
+            title: t.type || 'Intelligence Alert',
+            severity: t.level || t.severity || 'Medium',
+            time: t.createdAt ? new Date(t.createdAt).toLocaleTimeString() : 'Recently',
+            desc: t.description || t.details || '',
+            score: t.confidenceScore ?? t.score ?? 75,
+            location: t.location || '',
+            sources: t.sources || [],
+            affectedCases: t.affectedCases || [],
+          }));
+          setAlerts(mapped);
+          if (!activeAlertId && mapped.length > 0) setActiveAlertId(mapped[0].id);
+        }
+      } catch (err) {
+        console.error('Failed to fetch Intelligence Feed:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+    const interval = setInterval(fetchData, 15000);
+    return () => clearInterval(interval);
+  }, []);
+
+  if (loading) return <div className="flex items-center justify-center h-full text-emerald-600 font-bold animate-pulse">Syncing Intelligence Feeds...</div>;
 
   const filteredAlerts = activeFilter ? alerts.filter(a => a.severity === activeFilter) : alerts;
   const activeAlert = alerts.find(a => a.id === activeAlertId) || alerts[0];
@@ -1041,16 +1068,47 @@ function TrendingUpIcon() {
 }
 
 function EvidenceVaultView({ highContrast }: { highContrast: boolean }) {
-  const [activeEvidenceId, setActiveEvidenceId] = useState(1);
+  const [activeEvidenceId, setActiveEvidenceId] = useState<any>(null);
   const [downloadStatus, setDownloadStatus] = useState<string | null>(null);
+  const [evidences, setEvidences] = useState<any[]>([]);
+  const [caseIdFilter, setCaseIdFilter] = useState('MH-2026-4001');
+  const [loading, setLoading] = useState(true);
 
-  const evidences = [
-    { id: 1, title: "CCTV_Pune_St_04.mp4", type: "Video", date: "Oct 24, 2026", size: "124 MB", icon: Video, color: "text-blue-500 bg-blue-50", uploader: "Insp. Sharma" },
-    { id: 2, title: "Intercept_Audio_A1.wav", type: "Audio", date: "Oct 24, 2026", size: "14 MB", icon: Mic, color: "text-amber-500 bg-amber-50", uploader: "Cyber Cell" },
-    { id: 3, title: "Suspect_Vehicle_Plate.jpg", type: "Photos", date: "Oct 23, 2026", size: "4.2 MB", icon: ImageIcon, color: "text-emerald-500 bg-emerald-50", uploader: "Traffic Dept" },
-    { id: 4, title: "Phone_Dump_Pixel7.zip", type: "Device Dumps", date: "Oct 22, 2026", size: "4.8 GB", icon: Smartphone, color: "text-purple-500 bg-purple-50", uploader: "Forensics Team" },
-    { id: 5, title: "Bank_Statements_Oct.pdf", type: "Documents", date: "Oct 21, 2026", size: "2.1 MB", icon: FileText, color: "text-red-500 bg-red-50", uploader: "Fin-Intel" },
-  ];
+  const typeIconMap: Record<string, any> = { 'Video': Video, 'Audio': Mic, 'Photos': ImageIcon, 'Device Dumps': Smartphone, 'Documents': FileText };
+  const typeColorMap: Record<string, string> = { 'Video': 'text-blue-500 bg-blue-50', 'Audio': 'text-amber-500 bg-amber-50', 'Photos': 'text-emerald-500 bg-emerald-50', 'Device Dumps': 'text-purple-500 bg-purple-50', 'Documents': 'text-red-500 bg-red-50' };
+
+  const fetchEvidence = async (caseId: string) => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${import.meta.env.VITE_IWR_API_URL}/evidence/${caseId}`);
+      if (res.ok) {
+        const data = await res.json();
+        const mapped = data.map((e: any) => ({
+          id: e._id,
+          title: e.url?.split('/').pop() || e.type,
+          type: e.type,
+          date: e.metadata?.timestamp ? new Date(e.metadata.timestamp).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Unknown',
+          size: e.metadata?.size || 'N/A',
+          icon: typeIconMap[e.type] || FileText,
+          color: typeColorMap[e.type] || 'text-gray-500 bg-gray-100',
+          uploader: e.uploaderId || 'Unknown',
+          location: e.metadata?.location || 'Unknown',
+          chainOfCustodyHash: e.chainOfCustodyHash,
+          aiAnalysis: e.aiAnalysis || {}
+        }));
+        setEvidences(mapped);
+        if (mapped.length > 0) setActiveEvidenceId(mapped[0].id);
+      }
+    } catch (err) {
+      console.error('Failed to fetch Evidence Vault:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchEvidence(caseIdFilter); }, [caseIdFilter]);
+
+  if (loading) return <div className="flex items-center justify-center h-full text-emerald-600 font-bold animate-pulse">Loading Evidence Vault...</div>;
 
   const activeEv = evidences.find(e => e.id === activeEvidenceId) || evidences[0];
 
@@ -1070,12 +1128,20 @@ function EvidenceVaultView({ highContrast }: { highContrast: boolean }) {
         
         {/* Center: Evidence Repository */}
         <div className={`flex-1 rounded-xl border flex flex-col overflow-hidden ${highContrast ? "bg-stone-900 border-stone-800" : "bg-white border-gray-100 shadow-sm"}`}>
-          <div className="p-4 border-b border-gray-100 dark:border-stone-800 bg-gray-50/50 dark:bg-stone-900 flex justify-between items-center shrink-0">
+           <div className="p-4 border-b border-gray-100 dark:border-stone-800 bg-gray-50/50 dark:bg-stone-900 flex flex-wrap justify-between items-center gap-3 shrink-0">
              <h3 className="font-bold text-xs tracking-widest uppercase text-gray-500">Evidence Repository</h3>
-             <div className="flex gap-2">
-               {['Photos', 'Videos', 'Audio', 'Documents', 'Device Dumps'].map(cat => (
-                 <span key={cat} className="text-[10px] font-bold text-gray-500 bg-gray-100 dark:bg-stone-800 dark:text-gray-400 px-2 py-1 rounded-full border border-gray-200 dark:border-stone-700">{cat}</span>
-               ))}
+             <div className="flex items-center gap-2">
+               <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Case ID:</span>
+               <select
+                 value={caseIdFilter}
+                 onChange={e => setCaseIdFilter(e.target.value)}
+                 className={`text-xs font-bold py-1 px-2 rounded-lg border outline-none focus:ring-2 focus:ring-emerald-500 ${highContrast ? 'bg-stone-800 border-stone-700 text-white' : 'bg-white border-gray-200 text-gray-800'}`}
+               >
+                 <option value="MH-2026-4001">MH-2026-4001</option>
+                 <option value="MH-2026-3992">MH-2026-3992</option>
+                 <option value="DL-2026-0881">DL-2026-0881</option>
+                 <option value="WB-2026-1104">WB-2026-1104</option>
+               </select>
              </div>
           </div>
           
@@ -1139,7 +1205,7 @@ function EvidenceVaultView({ highContrast }: { highContrast: boolean }) {
                 </div>
                 <div>
                   <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Location</span>
-                  <span className="text-sm font-medium text-gray-900 dark:text-white flex items-center gap-1"><MapPin className="w-3 h-3" /> Pune Station</span>
+                  <span className="text-sm font-medium text-gray-900 dark:text-white flex items-center gap-1"><MapPin className="w-3 h-3" /> {activeEv?.location || 'Unknown'}</span>
                 </div>
                 <div className="col-span-2">
                   <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Uploader</span>
@@ -1642,7 +1708,18 @@ function LeadFusionCenterView({ highContrast }: { highContrast: boolean }) {
 
   if (loading) return <div className="flex items-center justify-center h-full text-emerald-600 font-bold animate-pulse">Aggregating Global Feeds...</div>;
 
-  const handleAction = (action: string) => {
+  const handleAction = async (action: string) => {
+    const activeLead = leads.find(l => l.id === activeLeadId);
+    if (!activeLead) return;
+
+    if (action === 'Verify') {
+      try {
+        await fetch(`${import.meta.env.VITE_IWR_API_URL}/leads/${activeLead.id}/verify`, { method: 'PUT' });
+      } catch (err) {
+        console.error('Verify API failed, updating locally:', err);
+      }
+    }
+
     setLeads(prevLeads => prevLeads.map(lead => {
       if (lead.id === activeLeadId) {
         switch (action) {
@@ -1660,6 +1737,7 @@ function LeadFusionCenterView({ highContrast }: { highContrast: boolean }) {
       if (remainingLeads.length > 0) setActiveLeadId(remainingLeads[0].id);
     }
   };
+
 
   const filteredLeads = activeFilter === "All" ? leads : leads.filter(l => l.status === activeFilter);
   const activeLead = leads.find(l => l.id === activeLeadId) || leads[0];
@@ -1851,30 +1929,69 @@ function LeadFusionCenterView({ highContrast }: { highContrast: boolean }) {
 
 function TacticalDeploymentCenterView({ highContrast }: { highContrast: boolean }) {
   const [activeFilter, setActiveFilter] = useState("All");
-  const [activeTeamId, setActiveTeamId] = useState(1);
+  const [activeTeamId, setActiveTeamId] = useState<any>(null);
   const [selectedDeployTeam, setSelectedDeployTeam] = useState("Team Alpha");
-  const [selectedDeployZone, setSelectedDeployZone] = useState("Search Zone 12");
+  const [selectedDeployZone, setSelectedDeployZone] = useState("Siliguri Corridor Sector 4");
+  const [teams, setTeams] = useState<any[]>([]);
+  const [loadingTeams, setLoadingTeams] = useState(true);
+  const [deployStatus, setDeployStatus] = useState<'idle' | 'deploying' | 'done'>('idle');
 
-  const [teams, setTeams] = useState([
-    { id: 1, type: "Ground Teams", status: "Available", name: "Team Alpha", location: "Sector 4 Outpost", eta: "5 min", coverage: 85, success: 92, mission: "Standby" },
-    { id: 2, type: "Drones", status: "On Mission", name: "Drone Squad 1", location: "Grid 7B", eta: "2 min", coverage: 95, success: 88, mission: "Search & Track" },
-    { id: 3, type: "Vehicles", status: "Returning", name: "Convoy Delta", location: "Highway 9", eta: "15 min", coverage: 60, success: 100, mission: "Extraction" },
-    { id: 4, type: "Checkpoints", status: "Standby", name: "Checkpoint Charlie", location: "Border Route", eta: "N/A", coverage: 40, success: 90, mission: "Monitoring" },
-    { id: 5, type: "Ground Teams", status: "On Mission", name: "Team Bravo", location: "Warehouse District", eta: "0 min", coverage: 75, success: 85, mission: "Raid" }
-  ]);
+  useEffect(() => {
+    const fetchOps = async () => {
+      setLoadingTeams(true);
+      try {
+        const res = await fetch(`${import.meta.env.VITE_IWR_API_URL}/operations`);
+        if (res.ok) {
+          const data = await res.json();
+          const mapped = data.map((op: any, i: number) => ({
+            id: op._id || i,
+            type: 'Ground Teams',
+            status: op.status || 'Standby',
+            name: op.teamName,
+            location: op.currentMission?.searchZone || 'Base',
+            eta: op.currentMission?.etaMinutes ? `${op.currentMission.etaMinutes} min` : 'N/A',
+            coverage: op.currentMission?.expectedCoverage ?? 75,
+            success: op.currentMission?.successProbability ?? 80,
+            mission: op.status === 'Airborne' ? 'Aerial Search' : op.status === 'On Mission' ? 'Active Search' : op.status
+          }));
+          setTeams(mapped);
+          if (mapped.length > 0) setActiveTeamId(mapped[0].id);
+        }
+      } catch (err) {
+        console.error('Failed to fetch Operations:', err);
+      } finally {
+        setLoadingTeams(false);
+      }
+    };
+    fetchOps();
+    const interval = setInterval(fetchOps, 20000);
+    return () => clearInterval(interval);
+  }, []);
 
-  const handleDeploy = () => {
-    const existingTeamIndex = teams.findIndex(t => t.name === selectedDeployTeam);
-    if (existingTeamIndex >= 0) {
-      setTeams(prev => prev.map((t, i) => i === existingTeamIndex ? { ...t, status: "On Mission", location: selectedDeployZone, eta: "14 min", coverage: 81, mission: "Deployment" } : t));
-    } else {
-      const newTeam = { id: Date.now(), type: "Ground Teams", status: "On Mission", name: selectedDeployTeam, location: selectedDeployZone, eta: "14 min", coverage: 81, success: 85, mission: "Search" };
-      setTeams(prev => [...prev, newTeam]);
+  const handleDeploy = async () => {
+    setDeployStatus('deploying');
+    try {
+      await fetch(`${import.meta.env.VITE_IWR_API_URL}/operations/deploy`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ teamName: selectedDeployTeam, searchZone: selectedDeployZone, etaMinutes: 14 })
+      });
+      setTeams(prev => prev.map(t => t.name === selectedDeployTeam
+        ? { ...t, status: 'On Mission', location: selectedDeployZone, eta: '14 min', coverage: 81, mission: 'Deployment' }
+        : t));
+      setDeployStatus('done');
+      setTimeout(() => setDeployStatus('idle'), 3000);
+    } catch (err) {
+      console.error('Deploy failed:', err);
+      setDeployStatus('idle');
     }
   };
 
+
   const filteredTeams = activeFilter === "All" ? teams : teams.filter(t => t.status === activeFilter);
   const activeTeam = teams.find(t => t.id === activeTeamId) || teams[0];
+
+  if (loadingTeams) return <div className="flex items-center justify-center h-full text-emerald-600 font-bold animate-pulse">Loading Operational Units...</div>;
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -2068,14 +2185,31 @@ function AIInvestigationDeskView({ highContrast }: { highContrast: boolean }) {
     { id: 4, type: "Timeline", status: "High Risk", title: "Meeting at Grid 7B", summary: "Surveillance footage of Kingpin Alpha meeting associates.", risk: 88, recovery: 60, nextAction: "Deploy Team Alpha", similar: "Case #3304" }
   ];
 
-  const handleAiQuery = (query: string) => {
+  const handleAiQuery = async (query: string) => {
     setIsAiLoading(true);
     setAiResponse(null);
-    setTimeout(() => {
-      setAiResponse(`Context loaded from ${activeBriefing.title}. Processing query: "${query}"... Analysis complete. The system recommends proceeding with "${activeBriefing.nextAction}" to mitigate the current ${activeBriefing.risk}% risk factor.`);
+    try {
+      const res = await fetch(`${import.meta.env.VITE_AIFL_API_URL}/gemini/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: query,
+          context: `Case briefing: ${activeBriefing?.title}. Summary: ${activeBriefing?.summary}. Risk: ${activeBriefing?.risk}%. Next recommended action: ${activeBriefing?.nextAction}.`
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAiResponse(data.response || data.text || data.message || 'AI analysis complete.');
+      } else {
+        setAiResponse(`[Offline Mode] Context loaded from ${activeBriefing?.title}. Analysis complete. The system recommends proceeding with "${activeBriefing?.nextAction}" to mitigate the current ${activeBriefing?.risk}% risk factor.`);
+      }
+    } catch (err) {
+      setAiResponse(`[Offline Mode] Context loaded from ${activeBriefing?.title}. Analysis complete. The system recommends proceeding with "${activeBriefing?.nextAction}" to mitigate the current ${activeBriefing?.risk}% risk factor.`);
+    } finally {
       setIsAiLoading(false);
-    }, 1500);
+    }
   };
+
 
   const filteredBriefings = activeFilter === "All" ? briefings : briefings.filter(b => b.type === activeFilter);
   const activeBriefing = briefings.find(b => b.id === activeBriefingId) || briefings[0];

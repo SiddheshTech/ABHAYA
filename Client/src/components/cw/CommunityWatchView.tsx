@@ -98,8 +98,8 @@ export default function CommunityWatchView({ highContrast }: CommunityWatchViewP
                 </thead>
                 <tbody className="divide-y divide-transparent">
                   {activePatrols.map((patrol) => (
-                    <tr key={patrol.id} className="group hover:bg-stone-50 dark:hover:bg-stone-900/30 transition-colors">
-                      <td className="py-3 font-bold text-emerald-600 dark:text-emerald-400">{patrol.id}</td>
+                    <tr key={patrol._id} className="group hover:bg-stone-50 dark:hover:bg-stone-900/30 transition-colors">
+                      <td className="py-3 font-bold text-emerald-600 dark:text-emerald-400">{patrol.patrolId}</td>
                       <td className="py-3">
                         <div>
                           <p className={`font-medium ${textMain}`}>{patrol.area}</p>
@@ -205,7 +205,7 @@ export default function CommunityWatchView({ highContrast }: CommunityWatchViewP
 
             <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
               {broadcasts.map((b) => (
-                <div key={b.id} className={`p-3 rounded-xl border ${borderCol} space-y-1.5`}>
+                <div key={b._id} className={`p-3 rounded-xl border ${borderCol} space-y-1.5`}>
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">{b.sender}</span>
                     <span className="text-[9px] text-stone-400">{b.time}</span>

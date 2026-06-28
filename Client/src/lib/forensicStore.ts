@@ -82,11 +82,11 @@ export const useForensicStore = create<ForensicStore>((set) => ({
                 profilesRes,
                 statsRes
             ] = await Promise.all([
-                fetch('http://localhost:5004/api/reconstructions').then(r => r.json()),
-                fetch('http://localhost:5004/api/network-genomes').then(r => r.json()),
-                fetch('http://localhost:5004/api/predictions/history').then(r => r.json()),
-                fetch('http://localhost:5004/api/criminal/search').then(r => r.json()),
-                fetch('http://localhost:5004/api/dashboard/stats').then(r => r.json())
+                fetch('/api/reconstructions').then(r => r.json()),
+                fetch('/api/network-genome').then(r => r.json()),
+                fetch('/api/predictions/history').then(r => r.json()),
+                fetch('/api/criminal/search').then(r => r.json()),
+                fetch('/api/dashboard/stats').then(r => r.json())
             ]);
 
             set({

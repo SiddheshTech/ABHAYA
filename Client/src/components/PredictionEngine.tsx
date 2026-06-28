@@ -200,7 +200,7 @@ export default function PredictionEngine({ highContrast, showToast }: Prediction
   // Sync / Fetch functions
   const fetchHistory = async () => {
     try {
-      const res = await fetch("http://localhost:5004/api/predictions/history");
+      const res = await fetch("/api/predictions/history");
       const data = await res.json();
       setPredictionHistory(data);
       if (data.length > 0) {
@@ -219,7 +219,7 @@ export default function PredictionEngine({ highContrast, showToast }: Prediction
 
   const fetchAuditLogs = async () => {
     try {
-      const res = await fetch("http://localhost:5004/api/predictions/audit");
+      const res = await fetch("/api/predictions/audit");
       const data = await res.json();
       setAuditLogs(data);
     } catch (err) {
@@ -264,7 +264,7 @@ export default function PredictionEngine({ highContrast, showToast }: Prediction
     }
 
     try {
-      const response = await fetch("http://localhost:5004/api/predictions/generate", {
+      const response = await fetch("/api/predictions/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

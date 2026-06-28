@@ -54,8 +54,9 @@ export default function SheltersView({
   const highOccupancyCount = sheltersList.filter(s => (s.occupancy / s.capacity) > 0.85).length;
   const warningsCount = sheltersList.filter(s => s.status === 'Warning' || s.status === 'Critical').length;
 
-  // Extract extended details from the selected shelter directly
-  const extendedDetails = {
+<<<<<<< HEAD
+  // Merge the shelter detail sources so the UI shows backend data when available and sensible fallbacks otherwise.
+  const extDetails = {
     doctors: selectedShelter?.doctors || "Information not provided",
     counsellors: selectedShelter?.counsellors || "Information not provided",
     inspectionHistory: selectedShelter?.inspectionHistory || "No recent inspection data",

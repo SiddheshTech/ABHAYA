@@ -13,18 +13,24 @@ async function seedDatabases() {
     const FamilyMatch = childConn.model('FamilyMatch', new mongoose.Schema({ id: String }, { strict: false }));
     const WellnessRecord = childConn.model('WellnessRecord', new mongoose.Schema({ id: String }, { strict: false }));
     const JourneyMilestone = childConn.model('JourneyMilestone', new mongoose.Schema({ id: String }, { strict: false }));
+    const Campaign = childConn.model('Campaign', new mongoose.Schema({ id: String }, { strict: false }));
+    const ImpactStory = childConn.model('ImpactStory', new mongoose.Schema({ id: String }, { strict: false }));
 
     await Child.deleteMany({});
     await Shelter.deleteMany({});
     await FamilyMatch.deleteMany({});
     await WellnessRecord.deleteMany({});
     await JourneyMilestone.deleteMany({});
+    await Campaign.deleteMany({});
+    await ImpactStory.deleteMany({});
     
     await Child.insertMany(db.children);
     await Shelter.insertMany(db.shelters);
     await FamilyMatch.insertMany(db.familyMatches);
     await WellnessRecord.insertMany(db.wellnessRecords);
     await JourneyMilestone.insertMany(db.journeyMilestones);
+    await Campaign.insertMany(db.campaigns);
+    await ImpactStory.insertMany(db.impactStories);
     
     await childConn.close();
     console.log("child_recovery DB seeded successfully.");

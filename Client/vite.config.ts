@@ -22,7 +22,35 @@ export default defineConfig(() => {
           target: 'http://localhost:8004',
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/api\/psych/, '/api')
-        }
+        },
+        '/api/auth': {
+          target: 'http://localhost:5010',
+          changeOrigin: true,
+        },
+        '/api/children': {
+          target: 'http://localhost:5000',
+          changeOrigin: true,
+        },
+        '/api/shelters': {
+          target: 'http://localhost:5000',
+          changeOrigin: true,
+        },
+        '/api/family-matches': {
+          target: 'http://localhost:5000',
+          changeOrigin: true,
+        },
+        '/api/wellness': {
+          target: 'http://localhost:5000',
+          changeOrigin: true,
+        },
+        '/api/journeys': {
+          target: 'http://localhost:5000',
+          changeOrigin: true,
+        },
+        '/api/stats': {
+          target: 'http://localhost:5000',
+          changeOrigin: true,
+        },
       },
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
       // Do not modifyâfile watching is disabled to prevent flickering during agent edits.

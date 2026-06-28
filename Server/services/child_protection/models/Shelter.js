@@ -9,13 +9,13 @@ const shelterSchema = new mongoose.Schema({
     specializedCare: [{ type: String }],
     staffAvailable: { type: Number, required: true },
     status: { type: String, enum: ['Normal', 'Capacity Warning', 'Medical Request'], required: true },
-    doctors: { type: String },
-    counsellors: { type: String },
-    inspectionHistory: { type: String },
-    performanceScore: { type: String },
-    fundingStatus: { type: String },
-    supplyStatus: { type: String },
-    details: { type: String }
+    doctors: { type: String, default: "" },
+    counsellors: { type: String, default: "" },
+    inspectionHistory: { type: String, default: "" },
+    performanceScore: { type: String, default: "" },
+    fundingStatus: { type: String, default: "" },
+    supplyStatus: { type: String, default: "" },
+    details: { type: String, default: "" }
 }, { timestamps: true });
 
 shelterSchema.set('toJSON', {

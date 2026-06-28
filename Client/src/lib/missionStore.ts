@@ -81,10 +81,10 @@ export const useMissionStore = create<MissionStore>((set, get) => ({
 
     try {
       const [teamsData, dronesData, missionsData, statsData] = await Promise.all([
-        fetch('http://localhost:5005/api/teams').then(r => r.json()),
-        fetch('http://localhost:5005/api/drones').then(r => r.json()),
-        fetch('http://localhost:5005/api/missions').then(r => r.json()),
-        fetch('http://localhost:5005/api/stats').then(r => r.json()),
+        fetch('/api/teams').then(r => r.json()),
+        fetch('/api/drones').then(r => r.json()),
+        fetch('/api/missions').then(r => r.json()),
+        fetch('/api/mc-stats').then(r => r.json()),
       ]);
 
       set({
@@ -99,7 +99,7 @@ export const useMissionStore = create<MissionStore>((set, get) => ({
         }
       });
 
-      const socket = io("http://localhost:5005");
+      const socket = io();
       
       socket.on('update', async ({ type, data }) => {
         if (type === 'teams') set({ teams: data });
@@ -111,7 +111,7 @@ export const useMissionStore = create<MissionStore>((set, get) => ({
         
         // Refresh stats
         try {
-          const stats = await fetch('http://localhost:5005/api/stats').then(r => r.json());
+          const stats = await fetch('/api/mc-stats').then(r => r.json());
           set({
             kpis: {
               activeMissions: stats.activeMissions || 0,
@@ -134,7 +134,7 @@ export const useMissionStore = create<MissionStore>((set, get) => ({
 
   activateEmergency: async () => {
     try {
-      await fetch('http://localhost:5005/api/emergency', {
+      await fetch('/api/emergency', {
         method: 'POST',
       });
     } catch(e) {
@@ -146,7 +146,7 @@ export const useMissionStore = create<MissionStore>((set, get) => ({
   
   broadcastEmergency: async (message: string) => {
     try {
-      await fetch('http://localhost:5005/api/emergency/broadcast', {
+      await fetch('/api/emergency/broadcast', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message }),

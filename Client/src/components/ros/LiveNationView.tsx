@@ -68,6 +68,14 @@ export default function LiveNationView({ highContrast }: LiveNationViewProps) {
 
   const filteredNodes = stateNodes.filter(s => s.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
+  if (!activeProfile) {
+    return (
+      <div className="flex h-[calc(100vh-200px)] items-center justify-center text-orange-500 font-mono text-xs font-bold animate-pulse">
+        ESTABLISHING CONNECTION TO NATIONAL GRID...
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 animate-in fade-in duration-350 select-none">
       

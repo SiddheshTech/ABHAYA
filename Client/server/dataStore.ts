@@ -22,6 +22,13 @@ export interface Shelter {
   specializedCare: string[];
   staffAvailable: number;
   status: 'Normal' | 'Capacity Warning' | 'Medical Request';
+  doctors: string;
+  counsellors: string;
+  inspectionHistory: string;
+  performanceScore: string;
+  fundingStatus: string;
+  supplyStatus: string;
+  details: string;
 }
 
 export interface FamilyMatch {
@@ -58,6 +65,37 @@ export interface JourneyMilestone {
   currentStage?: string;
   daysInCare?: number;
   progressPercentage?: number;
+}
+
+export interface CampaignData {
+  id: string;
+  imgUrl: string;
+  titleEn: string;
+  titleHi: string;
+  descEn: string;
+  descHi: string;
+  btnTextEn: string;
+  btnTextHi: string;
+  themeColor: string;
+  btnBg: string;
+  hoverColor: string;
+  accentColor: string;
+  badgeEn: string;
+  badgeHi: string;
+  suggestedAmount: number[];
+  statEn: string;
+  statHi: string;
+  index: number;
+}
+
+export interface ImpactStoryData {
+  id: string;
+  targetNum: number;
+  textEn: string;
+  textHi: string;
+  bgColor: string;
+  badgeColor: string;
+  iconType: string;
 }
 
 export interface Team {
@@ -99,10 +137,10 @@ export class DataStore {
   ];
 
   shelters: Shelter[] = [
-    { id: "S-1", name: "Hope Center, Delhi", capacity: 150, occupancy: 120, contactInfo: "+91 9876543210", specializedCare: ["Trauma Therapy", "Education"], staffAvailable: 24, status: "Normal" },
-    { id: "S-2", name: "SafeHaven, Mumbai", capacity: 100, occupancy: 95, contactInfo: "+91 9876543211", specializedCare: ["Medical Recovery"], staffAvailable: 15, status: "Capacity Warning" },
-    { id: "S-3", name: "Aashray, Pune", capacity: 50, occupancy: 20, contactInfo: "+91 9876543212", specializedCare: ["Early Childhood"], staffAvailable: 10, status: "Normal" },
-    { id: "S-4", name: "Care Home, Bangalore", capacity: 200, occupancy: 150, contactInfo: "+91 9876543213", specializedCare: ["Special Needs", "Rehabilitation"], staffAvailable: 30, status: "Medical Request" }
+    { id: "S-1", name: "Hope Center, Delhi", capacity: 150, occupancy: 120, contactInfo: "+91 9876543210", specializedCare: ["Trauma Therapy", "Education"], staffAvailable: 24, status: "Normal", doctors: "Dr. Sunita Sharma (Pediatrician), Dr. Ravi Sen (General)", counsellors: "Manoj Kumar (Trauma Specialist), Priya Shah (Child Psychologist)", inspectionHistory: "Passed with Honors (March 2026)", performanceScore: "95/100", fundingStatus: "Fully Funded (Ministry Grant Vatsalya)", supplyStatus: "Sufficient (3 months buffer medicine & meals)", details: "Primary Northern India gateway shelter equipped with standard child play rooms and isolation beds." },
+    { id: "S-2", name: "SafeHaven, Mumbai", capacity: 100, occupancy: 95, contactInfo: "+91 9876543211", specializedCare: ["Medical Recovery"], staffAvailable: 15, status: "Capacity Warning", doctors: "Dr. Alok Verma (Pediatrician), Dr. Anita Deshmukh (Psychiatrist)", counsellors: "Sanjay Joshi (Youth Specialist), Maria D'Souza (Therapist)", inspectionHistory: "Passed (January 2026)", performanceScore: "88/100", fundingStatus: "Emergency Grants Activated due to occupancy", supplyStatus: "Restocking Needed (Medical kits & therapeutic milk)", details: "Critical Western hub focusing on immediate rescue intake. High density, requires active capacity transfers." },
+    { id: "S-3", name: "Aashray, Pune", capacity: 50, occupancy: 20, contactInfo: "+91 9876543212", specializedCare: ["Early Childhood"], staffAvailable: 10, status: "Normal", doctors: "Dr. Milind Kulkarni (General), Dr. Swati Patil (Nutritionist)", counsellors: "Anjali Gore (Cognitive Therapist), Rahul Sawant (Case Worker)", inspectionHistory: "Passed (February 2026)", performanceScore: "92/100", fundingStatus: "Stable (Local Trust & CSR Matching)", supplyStatus: "Sufficient (Abundant storage beds)", details: "Long-term therapeutic recovery retreat with open garden classrooms and educational workspaces." },
+    { id: "S-4", name: "Care Home, Bangalore", capacity: 200, occupancy: 150, contactInfo: "+91 9876543213", specializedCare: ["Special Needs", "Rehabilitation"], staffAvailable: 30, status: "Medical Request", doctors: "Dr. Ramesh Hegde (Pediatrician), Dr. Sophia Thomas (Behavioral)", counsellors: "Karthik Raja (Reintegration Officer), Lakshmi Iyer (Therapist)", inspectionHistory: "Passed with Warnings (November 2025)", performanceScore: "84/100", fundingStatus: "Critical (Awaiting Quarterly Disbursement)", supplyStatus: "Low Buffer (Restock advisory raised for winter clothing)", details: "Southern special support hub focusing on multilingual child rescue cases and digital tracking labs." }
   ];
 
   familyMatches: FamilyMatch[] = [

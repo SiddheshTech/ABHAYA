@@ -154,13 +154,13 @@ export const useCRCStore = create<CRCState>((set, get) => ({
         medicalKits: Math.floor(s.capacity / 5),
         safeRooms: Math.floor(s.capacity / 15),
         status: s.status === 'Normal' ? 'Active' : s.status === 'Capacity Warning' ? 'Warning' : 'Critical',
-        doctors: s.doctors,
-        counsellors: s.counsellors,
-        inspectionHistory: s.inspectionHistory,
-        performanceScore: s.performanceScore,
-        fundingStatus: s.fundingStatus,
-        supplyStatus: s.supplyStatus,
-        details: s.details
+        doctors: s.doctors || "",
+        counsellors: s.counsellors || "",
+        inspectionHistory: s.inspectionHistory || "",
+        performanceScore: s.performanceScore || "",
+        fundingStatus: s.fundingStatus || "",
+        supplyStatus: s.supplyStatus || "",
+        details: s.details || ""
       }));
 
       set({

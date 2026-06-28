@@ -163,7 +163,7 @@ export default function CriminalMind({ highContrast, showToast }: CriminalMindPr
   const loadProfileData = async (idOrName: string, isSilent: boolean = false) => {
     try {
       if (!isSilent && showToast) showToast(`Fetching tactical profile for: ${idOrName}...`, "info");
-      const res = await fetch(`http://localhost:5004/api/criminal/profile/${encodeURIComponent(idOrName)}`);
+      const res = await fetch(`/api/criminal/profile/${encodeURIComponent(idOrName)}`);
       if (res.ok) {
         const data: CriminalProfile = await res.json();
         setActiveProfile(data);
@@ -189,7 +189,7 @@ export default function CriminalMind({ highContrast, showToast }: CriminalMindPr
     // Load initial profiles list from database
     const fetchProfiles = async () => {
       try {
-        const res = await fetch("http://localhost:5004/api/criminal/search");
+        const res = await fetch("/api/criminal/search");
         if (res.ok) {
           const list = await res.json();
           setProfiles(list);
@@ -244,7 +244,7 @@ export default function CriminalMind({ highContrast, showToast }: CriminalMindPr
 
     const timer = setTimeout(async () => {
       try {
-        const res = await fetch(`http://localhost:5004/api/criminal/search?q=${encodeURIComponent(searchQuery)}`);
+        const res = await fetch(`/api/criminal/search?q=${encodeURIComponent(searchQuery)}`);
         if (res.ok) {
           const matches = await res.json();
           setSuggestions(matches);
@@ -315,7 +315,7 @@ export default function CriminalMind({ highContrast, showToast }: CriminalMindPr
     try {
       // Trigger API endpoint for Gemini-powered intelligence matching
       const targetId = activeProfile?.id || "CR-8824";
-      const res = await fetch("http://localhost:5004/api/criminal/profiler", {
+      const res = await fetch("/api/criminal/profiler", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ profileId: targetId, customSeed: "re-run full biometric audit" })
@@ -371,7 +371,7 @@ export default function CriminalMind({ highContrast, showToast }: CriminalMindPr
         setProfilerStep(0);
         setProfilerLog("Enriching unindexed target profile via Multimodal AI...");
         try {
-          const res = await fetch("http://localhost:5004/api/criminal/profiler", {
+          const res = await fetch("/api/criminal/profiler", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ profileId: searchQuery.toUpperCase(), customSeed: `User query manual enrichment` })
@@ -798,7 +798,7 @@ export default function CriminalMind({ highContrast, showToast }: CriminalMindPr
                         <div className="flex items-center gap-2">
                           {/* Mini spark indicator for rising trends */}
                           {archetype.trend === "rising" && (
-                            <TrendingUp className="w-3.5 h-3.5 text-rose-500 animate-pulse" title="Escalating influence trend" />
+                            <TrendingUp className="w-3.5 h-3.5 text-rose-500 animate-pulse" aria-label="Escalating influence trend" />
                           )}
                           <span className={`font-mono text-xs font-bold ${isActive ? "text-purple-300" : "text-purple-400"}`}>
                             {archetype.score}%

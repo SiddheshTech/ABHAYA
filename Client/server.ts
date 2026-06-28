@@ -40,6 +40,8 @@ async function startServer() {
   app.use('/api/family-matches',proxyTo(SERVICES.childProtection, '/api/family-matches'));
   app.use('/api/wellness',      proxyTo(SERVICES.childProtection, '/api/wellness'));
   app.use('/api/journeys',      proxyTo(SERVICES.childProtection, '/api/journeys'));
+  app.use('/api/campaigns',     proxyTo(SERVICES.childProtection, '/api/campaigns'));
+  app.use('/api/impact-stories',proxyTo(SERVICES.childProtection, '/api/impact-stories'));
 
   // Auth Service (port 5010)
   app.use('/api/auth',          proxyTo(SERVICES.auth, '/api/auth'));
@@ -60,6 +62,7 @@ async function startServer() {
   app.use('/api/teams',         proxyTo(SERVICES.missionControl, '/api/teams'));
   app.use('/api/drones',        proxyTo(SERVICES.missionControl, '/api/drones'));
   app.use('/api/emergency',     proxyTo(SERVICES.missionControl, '/api/emergency'));
+  app.use('/api/mc-stats',      proxyTo(SERVICES.missionControl, '/api/stats'));
 
   // AI Forensic Lab (port 5004)
   app.use('/api/criminal',      proxyTo(SERVICES.aiForensicLab, '/api/criminal'));
@@ -68,6 +71,7 @@ async function startServer() {
   app.use('/api/network-genome',proxyTo(SERVICES.aiForensicLab, '/api/network-genome'));
   app.use('/api/search',        proxyTo(SERVICES.aiForensicLab, '/api/search'));
   app.use('/api/dashboard',     proxyTo(SERVICES.aiForensicLab, '/api/dashboard'));
+  app.use('/api/reconstructions',proxyTo(SERVICES.aiForensicLab, '/api/reconstructions'));
 
   // Ghost Engine (port 8001)
   app.use('/api/v1/ghost',      proxyTo(SERVICES.ghostEngine, '/api/v1/ghost'));

@@ -6,9 +6,31 @@ const Shelter = require('../models/Shelter');
 const FamilyMatch = require('../models/FamilyMatch');
 const WellnessRecord = require('../models/WellnessRecord');
 const JourneyMilestone = require('../models/JourneyMilestone');
+const Campaign = require('../models/Campaign');
+const ImpactStory = require('../models/ImpactStory');
 
 // Dashboard Routes
 router.get('/dashboard', (req, res) => res.json({ status: 'ok' }));
+
+// Campaigns
+router.get('/campaigns', async (req, res) => {
+    try {
+        const campaigns = await Campaign.find();
+        res.json(campaigns);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// Impact Stories
+router.get('/impact-stories', async (req, res) => {
+    try {
+        const stories = await ImpactStory.find();
+        res.json(stories);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
 
 // Stats
 router.get('/stats', async (req, res) => {

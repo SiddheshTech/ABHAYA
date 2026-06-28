@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Language } from "../data/translations";
 import { motion, AnimatePresence } from "motion/react";
 import { Heart, CreditCard, Sparkles, X, Gift, Check, ArrowRight, Share2, Award } from "lucide-react";
@@ -60,68 +60,18 @@ export default function OngoingCampaigns({ lang, highContrast, textSize }: Ongoi
     taxExempt: lang === "en" ? "All donations are 50% tax exempt under Section 80G." : "धारा 80G के तहत सभी दान 50% कर मुक्त हैं।"
   };
 
-  const campaigns: Campaign[] = [
-    {
-      id: "edu_child",
-      imgUrl: "https://images.unsplash.com/photo-1603201667141-5a2d4c673378?auto=format&fit=crop&q=80&w=700&h=480",
-      titleEn: "Every child deserves to learn. Help them thrive.",
-      titleHi: "हर बच्चे को सीखने का अधिकार है। उन्हें आगे बढ़ने में मदद करें।",
-      descEn: "Education empowers every future. Donate to ABHAYA and support quality learning for children everywhere. Together, let's ensure no child is left behind.",
-      descHi: "शिक्षा हर भविष्य को सशक्त बनाती है। अभया (ABHAYA) को दान करें और हर जगह बच्चों के लिए गुणवत्तापूर्ण शिक्षा का समर्थन करें। आइए मिलकर सुनिश्चित करें कि कोई भी बच्चा पीछे न छूटे।",
-      btnTextEn: "Donate Now",
-      btnTextHi: "अभी दान करें",
-      themeColor: "bg-[#01AABF]",
-      btnBg: "#01AABF",
-      hoverColor: "hover:bg-[#018e9f]",
-      accentColor: "#01AABF",
-      badgeEn: "Education Outreach",
-      badgeHi: "शिक्षा पहुंच",
-      suggestedAmount: [500, 1000, 2500, 5000],
-      statEn: "🎯 Goal: 25,000 Schools",
-      statHi: "🎯 लक्ष्य: 25,000 स्कूल",
-      index: 1
-    },
-    {
-      id: "diff_make",
-      imgUrl: "https://images.unsplash.com/photo-1596464716127-f2a82984de30?auto=format&fit=crop&q=80&w=700&h=480",
-      titleEn: "Join us in making a difference.",
-      titleHi: "बदलाव लाने में हमारे साथ जुड़ें।",
-      descEn: "Since 2004, we have partnered with the Government of India to empower over 10 million children. Your support allows us to reach even more children and ensure they can access a safe and nurturing environment.",
-      descHi: "2004 से, हमने 1 करोड़ से अधिक बच्चों को सशक्त बनाने के लिए भारत सरकार के साथ भागीदारी की है। आपका समर्थन हमें और भी अधिक बच्चों तक पहुँचने और सुरक्षित वातावरण सुनिश्चित करने की अनुमति देता है।",
-      btnTextEn: "Donate Now",
-      btnTextHi: "अभी दान करें",
-      themeColor: "bg-[#F38B95]",
-      btnBg: "#F38B95",
-      hoverColor: "hover:bg-[#e07580]",
-      accentColor: "#F38B95",
-      badgeEn: "Child Protection",
-      badgeHi: "बाल सुरक्षा",
-      suggestedAmount: [800, 1500, 3000, 6000],
-      statEn: "❤️ Impacted: 10M+ Kids",
-      statHi: "❤️ प्रभावित: 1 करोड़+ बच्चे",
-      index: 2
-    },
-    {
-      id: "tech_ignite",
-      imgUrl: "https://images.unsplash.com/photo-1577896851231-70ef18881754?auto=format&fit=crop&q=80&w=700&h=480",
-      titleEn: "Let's use technology to ignite young minds.",
-      titleHi: "आइए युवा दिमागों को प्रज्वलित करने के लिए तकनीक का उपयोग करें।",
-      descEn: "Join us in creating vibrant learning hubs for children nationwide. Donate to the \"Making Schools Smart\" project and equip 50 schools with STEM labs and smart classrooms, fostering scientific thinking and empowering future generations.",
-      descHi: "देश भर में बच्चों के लिए जीवंत शिक्षा केंद्र बनाने में हमारे साथ जुड़ें। 'मेकिंग स्कूल्स स्मार्ट' परियोजना को दान करें और 50 स्कूलों को एसटीईएम लैब और स्मार्ट क्लासरूम से लैस करें।",
-      btnTextEn: "Donate Now",
-      btnTextHi: "अभी दान करें",
-      themeColor: "bg-[#54C38E]",
-      btnBg: "#54C38E",
-      hoverColor: "hover:bg-[#43ad7b]",
-      accentColor: "#54C38E",
-      badgeEn: "Smart Classroom Initiative",
-      badgeHi: "स्मार्ट क्लासरूम पहल",
-      suggestedAmount: [1000, 2000, 5000, 10000],
-      statEn: "🚀 Tech Lab Goal: 50 Hubs",
-      statHi: "🚀 तकनीकी लैब लक्ष्य: 50 केंद्र",
-      index: 3
-    }
-  ];
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+
+  useEffect(() => {
+    fetch('/api/campaigns')
+      .then(res => res.json())
+      .then(data => {
+        // Sort by index as in original array
+        const sorted = data.sort((a: Campaign, b: Campaign) => a.index - b.index);
+        setCampaigns(sorted);
+      })
+      .catch(e => console.error("Failed to fetch campaigns", e));
+  }, []);
 
   const handleOpenModal = (campaign: Campaign) => {
     setSelectedCampaign(campaign);

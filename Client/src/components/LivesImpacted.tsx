@@ -44,62 +44,16 @@ function CountUpNumber({ target, duration = 1500 }: { target: number; duration?:
 export default function LivesImpacted({ lang, highContrast, textSize }: LivesImpactedProps) {
   const [hoveredCard, setHoveredCard] = useState<string | null>(null);
 
-  const impactData = [
-    {
-      id: "protection",
-      targetNum: 39631,
-      textEn: "children were protected from various forms of harm.",
-      textHi: "बच्चों को विभिन्न प्रकार के नुकसान और शोषण से सुरक्षित किया गया।",
-      bgColor: "bg-[#cb6032]",
-      badgeColor: "#cb6032",
-      iconType: "shield"
-    },
-    {
-      id: "livelihood",
-      targetNum: 5109,
-      textEn: "children benefitted from projects on addressing economic well-being.",
-      textHi: "बच्चे परिवारों के आर्थिक सशक्तिकरण व आजीविका सुधार से लाभांवित हुए।",
-      bgColor: "bg-[#e09d00]",
-      badgeColor: "#e09d00",
-      iconType: "trophy"
-    },
-    {
-      id: "education",
-      targetNum: 86737,
-      textEn: "children were reached through projects on education.",
-      textHi: "बच्चों को गुणवत्तापूर्ण शिक्षा और नवीन डिजिटल लर्निंग से जोड़ा गया।",
-      bgColor: "bg-[#09a496]",
-      badgeColor: "#09a496",
-      iconType: "education"
-    },
-    {
-      id: "humanitarian",
-      targetNum: 18927,
-      textEn: "children were reached through humanitarian work.",
-      textHi: "आपदा एवं आपातकालीन संकट के समय बच्चों तक सुरक्षा व राहत पहुंचाई गयी।",
-      bgColor: "bg-[#9a7fb8]",
-      badgeColor: "#9a7fb8",
-      iconType: "rocket"
-    },
-    {
-      id: "campaigns",
-      targetNum: 116276,
-      textEn: "children benefitted from campaigns & communication and other integrated initiatives.",
-      textHi: "बच्चे जन-जागरूकता अभियानों, संवाद व अन्य समग्र पहलों से लाभान्वित हुए।",
-      bgColor: "bg-[#84342d]",
-      badgeColor: "#84342d",
-      iconType: "lightning"
-    },
-    {
-      id: "health",
-      targetNum: 163073,
-      textEn: "children benefitted from projects on health & nutrition.",
-      textHi: "बच्चे व्यापक स्वास्थ्य, कुपोषण निवारण और आवश्यक पोषण से सुरक्षित हुए।",
-      bgColor: "bg-[#349d70]",
-      badgeColor: "#349d70",
-      iconType: "leaf"
-    }
-  ];
+  const [impactData, setImpactData] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetch('/api/impact-stories')
+      .then(res => res.json())
+      .then(data => {
+        setImpactData(data);
+      })
+      .catch(e => console.error("Failed to fetch impact stories", e));
+  }, []);
 
   // Render original vector icon overlays matching the specific colors exactly
   const renderFloatingIcon = (type: string, accentColor: string) => {
